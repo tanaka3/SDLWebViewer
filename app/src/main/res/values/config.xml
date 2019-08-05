@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="projection_url"></string>
+    <string name="application_url"></string>
+
+    <!-- sdlbootcampの接続情報 -->
+    <string name="sdlbootcamp_address">10.0.0.1</string>
+    <integer name="sdlbootcamp_port">12345</integer>
+
+    <!-- sdlbootcampの画面サイズ -->
+    <integer name="sdlbootcamp_display_width">800</integer>
+    <integer name="sdlbootcamp_display_height">480</integer>
+</resources>
