@@ -5,18 +5,19 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.IBinder;
-import android.telephony.SignalStrength;
 import android.util.Log;
 
 import com.smartdevicelink.managers.CompletionListener;
 import com.smartdevicelink.managers.SdlManager;
 import com.smartdevicelink.managers.SdlManagerListener;
 import com.smartdevicelink.managers.file.filetypes.SdlArtwork;
+import com.smartdevicelink.managers.video.VideoStreamManager;
 import com.smartdevicelink.protocol.enums.FunctionID;
 import com.smartdevicelink.proxy.RPCNotification;
 import com.smartdevicelink.proxy.RPCResponse;
@@ -70,7 +71,6 @@ import com.smartdevicelink.transport.BaseTransportConfig;
 import com.smartdevicelink.transport.MultiplexTransportConfig;
 import com.smartdevicelink.transport.TCPTransportConfig;
 
-import net.masaya3.sdlwebviewer.BuildConfig;
 import net.masaya3.sdlwebviewer.R;
 
 import org.json.JSONArray;
@@ -153,36 +153,55 @@ public class SdlService extends Service {
 		super.onDestroy();
 	}
 
+	//LocalBroadcasetReceiver
+	private BroadcastReceiver receiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+		}
+	};
+
+
 	private void startProxy() {
 
 		if (sdlManager == null) {
 			Log.i(TAG, "Starting SDL Proxy");
 
+			String transport_config = "";
+			String securiy_config = "";
 			BaseTransportConfig transport = null;
-			if (BuildConfig.TRANSPORT.equals("MULTI")) {
-				int securityLevel;
-				if (BuildConfig.SECURITY.equals("HIGH")) {
-					securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_HIGH;
-				} else if (BuildConfig.SECURITY.equals("MED")) {
-					securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_MED;
-				} else if (BuildConfig.SECURITY.equals("LOW")) {
-					securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_LOW;
-				} else {
-					securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF;
-				}
-				transport = new MultiplexTransportConfig(this, APP_ID, securityLevel);
-			} else if (BuildConfig.TRANSPORT.equals("TCP")) {
-				transport = new TCPTransportConfig(TCP_PORT, DEV_MACHINE_IP_ADDRESS, true);
-			} else if (BuildConfig.TRANSPORT.equals("MULTI_HB")) {
-				MultiplexTransportConfig mtc = new MultiplexTransportConfig(this, APP_ID, MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF);
-				mtc.setRequiresHighBandwidth(true);
-				transport = mtc;
+			switch(transport_config){
+				case "MULTI":
+					int securityLevel;
+
+					switch (securiy_config){
+						case "HIGH":
+							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_HIGH;
+							break;
+						case "MED":
+							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_MED;
+							break;
+						case "LOW":
+							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_LOW;
+							break;
+						default:
+							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF;
+							break;
+					}
+					transport = new MultiplexTransportConfig(this, APP_ID, securityLevel);
+					break;
+				case "MULTI_HB":
+					MultiplexTransportConfig mtc = new MultiplexTransportConfig(this, APP_ID, MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF);
+					mtc.setRequiresHighBandwidth(true);
+					transport = mtc;
+					break;
+				case "TCP":
+					transport = new TCPTransportConfig(TCP_PORT, DEV_MACHINE_IP_ADDRESS, true);
+					break;
 			}
 
 			// NAVIGATIONにしておく
 			Vector<AppHMIType> appType = new Vector<>();
 			appType.add(AppHMIType.NAVIGATION);
-
 
 			// The manager listener helps you know when certain events that pertain to the SDL Manager happen
 			// Here we will listen for ON_HMI_STATUS and ON_COMMAND notifications
@@ -276,7 +295,6 @@ public class SdlService extends Service {
 		// 画面サイズの指定
 		parameters.getResolution().setResolutionWidth(res.getInteger(R.integer.sdlbootcamp_display_width));
 		parameters.getResolution().setResolutionHeight(res.getInteger(R.integer.sdlbootcamp_display_height));
-		parameters.
 
 		sdlManager.getVideoStreamManager().startRemoteDisplayStream(getApplicationContext(), ProjectionDisplay.class, parameters, false);
 	}
@@ -290,7 +308,10 @@ public class SdlService extends Service {
 			return;
 		}
 
-		sdlManager.getVideoStreamManager().stopStreaming();
+		VideoStreamManager manager = sdlManager.getVideoStreamManager();
+		if(manager != null){
+			manager.stopStreaming();
+		}
 	}
 
 	/**
