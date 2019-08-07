@@ -6,9 +6,18 @@
     <string name="messages_header">Messages</string>
     <string name="sync_header">Sync</string>
 
-    <!-- Messages Preferences -->
+    <string name="url_header">URL設定</string>
+    <string name="type_header">動作設定</string>
+
     <string name="signature_title">Your signature</string>
     <string name="reply_title">Default reply action</string>
+
+    <string name="main_web_url_title">メイン画面のURL</string>
+    <string name="sdl_web_url_title">SDL画面のURL</string>
+
+    <string name="use_wifi_title">Wifiで接続する</string>
+    <string name="use_usb_title">USBで接続する</string>
+
 
     <!-- Sync Preferences -->
     <string name="sync_title">Sync email periodically</string>

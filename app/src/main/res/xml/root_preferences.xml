@@ -16,13 +16,19 @@
 
 <androidx.preference.PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory app:title="@string/messages_header">
+    <PreferenceCategory app:title="@string/url_header">
 
         <EditTextPreference
-            app:key="signature"
-            app:title="@string/signature_title"
+            app:key="main_url"
+            app:title="@string/main_web_url_title"
             app:useSimpleSummaryProvider="true" />
 
+        <EditTextPreference
+            app:key="sdl_url"
+            app:title="@string/sdl_web_url_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <!--
         <ListPreference
             app:defaultValue="reply"
             app:entries="@array/reply_entries"
@@ -30,22 +36,48 @@
             app:key="reply"
             app:title="@string/reply_title"
             app:useSimpleSummaryProvider="true" />
-
+        -->
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/sync_header">
+    <PreferenceCategory app:title="@string/type_header">
 
         <SwitchPreferenceCompat
-            app:key="sync"
-            app:title="@string/sync_title" />
+            app:key="use_wifi"
+            app:title="@string/use_wifi_title"
+            app:disableDependentsState="true"
+            app:useSimpleSummaryProvider="false"/>
 
+        <EditTextPreference
+            app:key="sdl_ip_address"
+            app:dependency="use_wifi"
+            app:title="@string/main_web_url_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            app:key="sdl_port"
+            app:dependency="use_wifi"
+            app:title="@string/sdl_web_url_title"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:dependency="use_wifi"
+            app:defaultValue="reply"
+            app:entries="@array/reply_entries"
+            app:entryValues="@array/reply_values"
+            app:summaryOff="@string/attachment_summary_off"
+            app:summaryOn="@string/attachment_summary_on"
+
+            app:key="use_usb"
+            app:title="@string/reply_title" />
+
+        <!--
         <SwitchPreferenceCompat
             app:dependency="sync"
             app:key="attachment"
             app:summaryOff="@string/attachment_summary_off"
             app:summaryOn="@string/attachment_summary_on"
             app:title="@string/attachment_title" />
-
+        -->
     </PreferenceCategory>
 
 </androidx.preference.PreferenceScreen>
