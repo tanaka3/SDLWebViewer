@@ -1,23 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="xxx.xxx">
+    tools:context="net.masaya3.sdlwebviewer.MainActivity">
+    <!--
     <item
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:title="@string/app_name"
-        android:icon="@mipmap/ic_launcher_round"
         app:showAsAction="always" >
-        <!--
         <menu>
-            <item android:id="@+id/action_menu1"
+            <item android:id="@+id/action_menu_setting"
                 android:icon="@android:drawable/ic_menu_preferences"
-                android:title="menu setting" />
-            <item android:id="@+id/action_menu2"
+                android:title="@string/menu_setting" />
+            <item android:id="@+id/action_menu_end"
                 android:icon="@android:drawable/ic_menu_help"
-                android:title="help" />
+                android:title="@string/menu_end" />
         </menu>
-        -->
+
     </item>
+    -->
+    <item android:id="@+id/action_menu_setting"
+    android:icon="@android:drawable/ic_menu_preferences"
+    android:title="@string/menu_setting" />
+
+    <item android:id="@+id/action_menu_end"
+    android:icon="@android:drawable/ic_menu_close_clear_cancel"
+    android:title="@string/menu_end" />
 </menu>

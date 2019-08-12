@@ -1,0 +1,69 @@
+<html>
+  <head>
+   <meta name="viewport" content="width=device-width,initial-scale=1">
+   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+   <script type="text/javascript">
+      google.charts.load('current', {'packages':['gauge']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      window.onload = function() {
+      }
+
+      function drawChart() {
+
+        var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Speed', 180],
+          ['RPM', 10000],
+          ['Accl', 100]
+        ]);
+
+        var options = {
+          width: 780, height: 480,
+          redFrom: 90, redTo: 100,
+          yellowFrom:75, yellowTo: 90,
+          minorTicks: 5
+        };
+
+        var chart = new google.visualization.Gauge(document.getElementById('chart_div'));
+
+        chart.draw(data, options);
+
+        /*
+        setInterval(function() {
+          data.setValue(0, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 13000);
+        setInterval(function() {
+          data.setValue(1, 1, 40 + Math.round(60 * Math.random()));
+          chart.draw(data, options);
+        }, 5000);
+        setInterval(function() {
+          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
+          chart.draw(data, options);
+        }, 26000);
+        */
+    }
+
+    function getVehicleData(json){
+        
+        vehicleData = JSON.parse(json);
+        if ('speed' in json){
+            data.setValue(0, 1, vehicleData.speed);
+            chart.draw(data, options);
+        }
+        if ('rpm' in json){
+            data.setValue(1, 1, vehicleData,rpm);
+            chart.draw(data, options);
+        }
+        if ('accPedalPosition' in json){
+            data.setValue(2, 1, vehicleData.accPedalPosition);
+            chart.draw(data, options);
+        }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="chart_div" style="width: 800px; height: 480px;"></div>
+  </body>
+</html>

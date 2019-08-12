@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="net.masaya3.sdlwebviewer">
 
     <uses-permission android:name="android.permission.BLUETOOTH" />
@@ -29,6 +30,41 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="com.smartdevicelink.transport.USBAccessoryAttachmentActivity"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+        </activity>
+
+        <service android:name=".sdl.SdlService" >
+        </service>
+        <service
+            android:name=".sdl.SdlRouterService"
+            android:exported="true"
+            android:process="com.smartdevicelink.router">
+            <intent-filter>
+                <action android:name="com.smartdevicelink.router.service"/>
+            </intent-filter>
+            <meta-data android:name="@string/sdl_router_service_version_name"  android:value="@integer/sdl_router_service_version_value" />
+        </service>
+        <receiver
+            android:name=".sdl.SdlReceiver"
+            android:enabled="true"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.smartdevicelink.USB_ACCESSORY_ATTACHED"/> <!--For AOA -->
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="sdl.router.startservice" />
+            </intent-filter>
+        </receiver>
+        <activity android:name="com.smartdevicelink.managers.lockscreen.SDLLockScreenActivity"
+            android:launchMode="singleTop"/>
     </application>
 
 </manifest>

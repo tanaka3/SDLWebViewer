@@ -1,12 +1,19 @@
 <resources>
     <!-- Reply Preference -->
-    <string-array name="reply_entries">
-        <item>Reply</item>
-        <item>Reply to all</item>
+    <string-array name="use_entries">
+        <item>USB接続（セキュリティなし</item>
+        <item>USB接続（セキュルティレベル弱</item>
+        <item>USB接続（セキュルティレベル中</item>
+        <item>USB接続（セキュルティレベル強</item>
+        <item>USB接続（ストリーミングモード</item>
+
     </string-array>
 
-    <string-array name="reply_values">
-        <item>reply</item>
-        <item>reply_all</item>
+    <string-array name="use_values">
+        <item>multi_sec_off</item>
+        <item>multi_sec_low</item>
+        <item>multi_sec_med</item>
+        <item>multi_sec_high</item>
+        <item>multi_high_bandwidth</item>
     </string-array>
 </resources>

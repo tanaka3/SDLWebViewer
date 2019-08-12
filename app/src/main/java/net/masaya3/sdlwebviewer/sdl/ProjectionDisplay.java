@@ -2,6 +2,7 @@ package net.masaya3.sdlwebviewer.sdl;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.MotionEvent;
@@ -11,6 +12,7 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.preference.PreferenceManager;
 
 import com.smartdevicelink.streaming.video.SdlRemoteDisplay;
 
@@ -20,6 +22,9 @@ import net.masaya3.sdlwebviewer.R;
  * プロジェクション用の画面
  */
 public class ProjectionDisplay extends SdlRemoteDisplay {
+
+
+    public static final String ACTION_VEHICLEDATA = "action_vhicledata";
 
     //javascript連動用
     public class JavaScript {
@@ -45,11 +50,11 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
 
         }
 
-        public void startSub(){
+        public void startSubscribeVehicleData(){
 
         }
 
-        public void stopSub(){
+        public void stopSubscribeVehicleData(){
 
         }
     }
@@ -66,11 +71,17 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.projection_layout);
 
+
+        //アプリケーション用のURLを取得する
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        String url = sharedPreferences.getString("sdl_url", getContext().getString(R.string.projection_url));
+
+
         WebView webView = (WebView) findViewById(R.id.webView);
         webView.setWebViewClient(new WebViewClient());
 
         //URLを指定する
-        webView.loadUrl(getContext().getString(R.string.projection_url));
+        webView.loadUrl(url);
 
         //Javascriptを有効にする
         webView.getSettings().setJavaScriptEnabled(true);

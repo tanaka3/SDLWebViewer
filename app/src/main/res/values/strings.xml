@@ -6,23 +6,37 @@
     <string name="messages_header">Messages</string>
     <string name="sync_header">Sync</string>
 
-    <string name="url_header">URL設定</string>
-    <string name="type_header">動作設定</string>
+    <string name="url_header">URL</string>
+    <string name="use_setting_title">URLの設定</string>
+    <string name="use_setting_summary">アプリおよび車載器で表示するURLを設定します</string>
 
-    <string name="signature_title">Your signature</string>
-    <string name="reply_title">Default reply action</string>
 
-    <string name="main_web_url_title">メイン画面のURL</string>
-    <string name="sdl_web_url_title">SDL画面のURL</string>
+    <string name="type_header">接続方法</string>
 
     <string name="use_wifi_title">Wifiで接続する</string>
-    <string name="use_usb_title">USBで接続する</string>
+    <string name="use_wifi_summary">車載器とWiFi接続する場合は、ONにします</string>
+
+    <string name="wifi_setting_title">接続先の設定</string>
+    <string name="wifi_setting_sumary">WiFi接続先の情報を設定します</string>
 
 
-    <!-- Sync Preferences -->
-    <string name="sync_title">Sync email periodically</string>
-    <string name="attachment_title">Download incoming attachments</string>
-    <string name="attachment_summary_on">Automatically download attachments for incoming emails
-    </string>
-    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <!-- -->
+    <string name="main_web_url_title">メイン画面のURL</string>
+    <string name="main_web_url_summary">メイン画面に表示するURLを設定します</string>
+
+    <string name="sdl_web_url_title">車載画面のURL</string>
+    <string name="sdl_web_url_summary">車載画面に表示するURLを設定します</string>
+
+    <!-- -->
+    <string name="ip_address_title">車載器のIPアドレス</string>
+    <string name="ip_address_summary">車載器のIPアドレスを設定します</string>
+
+    <string name="port_title">車載器のポート番号</string>
+    <string name="port_summary">車載器のポート番号を設定にします</string>
+
+
+
+
+    <string name="menu_setting">設定</string>
+    <string name="menu_end">終了</string>
 </resources>

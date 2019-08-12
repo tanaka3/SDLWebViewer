@@ -1,6 +1,7 @@
 package net.masaya3.sdlwebviewer;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -9,6 +10,10 @@ import android.webkit.WebViewClient;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.preference.PreferenceManager;
+
+import net.masaya3.sdlwebviewer.sdl.SdlReceiver;
+import net.masaya3.sdlwebviewer.sdl.SdlService;
 
 /**
  * メイン画面
@@ -20,6 +25,17 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        //If we are connected to a module we want to start our SdlService
+        if(sharedPreferences.getBoolean("use_wifi", false)) {
+            Intent proxyIntent = new Intent(this, SdlService.class);
+            startService(proxyIntent);
+        }
+        else{
+            SdlReceiver.queryForConnectedService(this);
+        }
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -28,15 +44,18 @@ public class MainActivity extends AppCompatActivity {
         //getSupportActionBar().setHomeAsUpIndicator(android.R.drawable.sym_def_app_icon);
 
         //SDLのService起動
-
-
+        //アプリケーション用のURLを取得する
+        String url = sharedPreferences.getString("main_url", getString(R.string.application_url));
+        if(url.isEmpty()){
+            url = getString(R.string.application_url);
+        }
 
         //メイン画面のWebView設定
         WebView webView = (WebView) findViewById(R.id.webview);
         webView.setWebViewClient(new WebViewClient());
 
         //URLを指定する
-        webView.loadUrl("https://www.yahoo.co.jp/");
+        webView.loadUrl(url);
 
         //Javascriptを有効にする
         webView.getSettings().setJavaScriptEnabled(true);
@@ -62,9 +81,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
 
-        Intent intent = new Intent(this, SettingsActivity.class);
-        startActivity(intent);
+        switch (item.getItemId()) {
+            case R.id.action_menu_setting:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            case R.id.action_menu_end:
+                this.finish();
+                return true;
+        }
 
-        return true;//super.onOptionsItemSelected(item);
+        return super.onOptionsItemSelected(item);
     }
 }
