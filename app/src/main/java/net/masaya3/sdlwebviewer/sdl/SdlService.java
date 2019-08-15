@@ -1,5 +1,6 @@
 package net.masaya3.sdlwebviewer.sdl;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -8,12 +9,19 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.preference.PreferenceManager;
 
@@ -36,6 +44,7 @@ import com.smartdevicelink.proxy.rpc.DisplayCapabilities;
 import com.smartdevicelink.proxy.rpc.ECallInfo;
 import com.smartdevicelink.proxy.rpc.EmergencyEvent;
 import com.smartdevicelink.proxy.rpc.FuelRange;
+import com.smartdevicelink.proxy.rpc.GPSData;
 import com.smartdevicelink.proxy.rpc.GetVehicleData;
 import com.smartdevicelink.proxy.rpc.GetVehicleDataResponse;
 import com.smartdevicelink.proxy.rpc.HeadLampStatus;
@@ -92,21 +101,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-public class SdlService extends Service {
+public class SdlService extends Service implements LocationListener {
 
 	public static final String ACTION_GET_VEHICLEDATA = "action_get_vhicledata";
 	public static final String ACTION_START_SUBSCRIBE_VEHICLEDATA = "action_start_vhicledata";
 	public static final String ACTION_STOP_SUBSCRIBE_VEHICLEDATA = "action_stop_vhicledata";
 
-	private static final String TAG 					= "SDL Service";
-
-	private static final String APP_NAME 				= "SDL Display";
-	private static final String APP_ID 					= "8678309";
-
-	private static final String ICON_FILENAME 			= "hello_sdl_icon.png";
+	private static final String TAG = "SDL Service";
 
 	private static final int FOREGROUND_SERVICE_ID = 111;
-
 
 	// variable to create and call functions of the SyncProxy
 	private SdlManager sdlManager = null;
@@ -115,26 +118,13 @@ public class SdlService extends Service {
 	private LocalBroadcastManager broadcastReceiver;
 
 	//プロジェクション画面との通信用
-	private BroadcastReceiver receiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
+	private BroadcastReceiver receiver;
 
-			switch(intent.getAction()){
-				//現在の情報を取得する
-				case ACTION_GET_VEHICLEDATA:
-					getVehicleData();
-					break;
-				//Subscribeを登録する
-				case ACTION_START_SUBSCRIBE_VEHICLEDATA:
-					startSubscribeVehicleData();
-					break;
-				//Subscribeを解除する
-				case ACTION_STOP_SUBSCRIBE_VEHICLEDATA:
-					stopSubscribeVehicleData();
-					break;
-			}
-		}
-	};
+	//ScribeVehicleDataの取得が実施されているかどうか
+	private boolean isSubScribeVehicleData = false;
+
+	// GPS情報の取得
+	private LocationManager locationManager;
 
 
 	@Override
@@ -150,13 +140,19 @@ public class SdlService extends Service {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			enterForeground();
 		}
+
+		//broadcastの登録
+		broadcastReceiver = LocalBroadcastManager.getInstance(getApplicationContext());
+
 	}
 
 	// Helper method to let the service enter foreground mode
 	@SuppressLint("NewApi")
 	public void enterForeground() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			NotificationChannel channel = new NotificationChannel(APP_ID, "SdlService", NotificationManager.IMPORTANCE_DEFAULT);
+
+
+			NotificationChannel channel = new NotificationChannel(getString(R.string.sdl_app_id), "SdlService", NotificationManager.IMPORTANCE_DEFAULT);
 			NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 			if (notificationManager != null) {
 				notificationManager.createNotificationChannel(channel);
@@ -169,18 +165,31 @@ public class SdlService extends Service {
 		}
 	}
 
+	/**
+	 * Service開始時
+	 * @param intent
+	 * @param flags
+	 * @param startId
+	 * @return
+	 */
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		startProxy();
+		startSDL();
 		return START_STICKY;
 	}
 
+	/**
+	 * Service終了時
+	 */
 	@Override
 	public void onDestroy() {
 
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			stopForeground(true);
 		}
+
+		//broadcastの解除
+		broadcastReceiver.unregisterReceiver(receiver);
 
 		if (sdlManager != null) {
 			sdlManager.dispose();
@@ -189,180 +198,196 @@ public class SdlService extends Service {
 		super.onDestroy();
 	}
 
-	private void startProxy() {
+	/**
+	 * SDLの開始
+	 */
+	private void startSDL() {
 
-		if (sdlManager == null) {
-			Log.i(TAG, "Starting SDL Proxy");
+		Log.i(TAG, "Starting SDL");
 
-			String transport_config = "";
-			String securiy_config = "";
+		if (sdlManager != null) {
+			return;
+		}
 
-			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-			if(sharedPreferences.getBoolean("use_wifi", false)){
-				transport_config  = "TCP";
-			}
-			else{
-				String usbType = "multi_high_bandwidth";
-				switch(usbType){
-					case "multi_sec_off":
-						transport_config = "MULTI";
-						securiy_config = "OFF";
-						break;
-					case "multi_sec_low":
-						transport_config = "MULTI";
-						securiy_config = "LOW";
+		// TransportConfigの取得
+		BaseTransportConfig transport = createTransportConfig();
 
-						break;
-					case "multi_sec_med":
-						transport_config = "MULTI";
-						securiy_config = "MED";
+		// NAVIGATION or PROJECTIONにしておく
+		Vector<AppHMIType> appType = new Vector<>();
+		appType.add(AppHMIType.NAVIGATION);
 
-						break;
-					case "multi_sec_high":
-						transport_config = "MULTI";
-						securiy_config = "HIGH";
+		// The manager listener helps you know when certain events that pertain to the SDL Manager happen
+		// Here we will listen for ON_HMI_STATUS and ON_COMMAND notifications
+		SdlManagerListener listener = new SdlManagerListener() {
+			@Override
+			public void onStart() {
+				// HMI Status Listener
+				sdlManager.addOnRPCNotificationListener(FunctionID.ON_HMI_STATUS, new OnRPCNotificationListener() {
 
-						break;
-					case "multi_high_bandwidth":
-						transport_config = "MULTI_HB";
-						break;
+					@Override
+					public void onNotified(RPCNotification notification) {
 
-				}
-			}
-			BaseTransportConfig transport = null;
-			switch(transport_config){
-				case "MULTI":
-					int securityLevel;
+						if (!(notification instanceof OnHMIStatus)) {
+							return;
+						}
 
-					switch (securiy_config){
-						case "HIGH":
-							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_HIGH;
-							break;
-						case "MED":
-							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_MED;
-							break;
-						case "LOW":
-							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_LOW;
-							break;
-						default:
-							securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF;
-							break;
-					}
-					transport = new MultiplexTransportConfig(this, APP_ID, securityLevel);
-					break;
-				case "MULTI_HB":
-					MultiplexTransportConfig mtc = new MultiplexTransportConfig(this, APP_ID, MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF);
-					mtc.setRequiresHighBandwidth(true);
-					transport = mtc;
-					break;
-				case "TCP":
-					String ip = sharedPreferences.getString("sdl_ip_address", getString(R.string.sdlbootcamp_address));
+						OnHMIStatus status = (OnHMIStatus) notification;
 
-					int port = Integer.parseInt(getString(R.string.sdlbootcamp_port));
-					try {
-						String port_str = sharedPreferences.getString("sdl_port", getString(R.string.sdlbootcamp_port));
-						port = Integer.parseInt(port_str);
-					}
-					catch (Exception e){
-						e.printStackTrace();
-					}
+						//初回起動時の処理
+						if (status.getHmiLevel() == HMILevel.HMI_FULL && ((OnHMIStatus) notification).getFirstRun()) {
 
-					transport = new TCPTransportConfig(port, ip, true);
-					break;
-			}
+							SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
+							//SDLBootCampでは必須の設定
+							setDisplayLayoutRequest.setDisplayLayout(PredefinedLayout.NAV_FULLSCREEN_MAP.toString());
+							sdlManager.sendRPC(setDisplayLayoutRequest);
 
-			// NAVIGATIONにしておく
-			Vector<AppHMIType> appType = new Vector<>();
-			appType.add(AppHMIType.NAVIGATION);
+							if (sdlManager.getVideoStreamManager() != null) {
 
-			// The manager listener helps you know when certain events that pertain to the SDL Manager happen
-			// Here we will listen for ON_HMI_STATUS and ON_COMMAND notifications
-			SdlManagerListener listener = new SdlManagerListener() {
-				@Override
-				public void onStart() {
-					// HMI Status Listener
-					sdlManager.addOnRPCNotificationListener(FunctionID.ON_HMI_STATUS, new OnRPCNotificationListener() {
-						@Override
-						public void onNotified(RPCNotification notification) {
-
-							OnHMIStatus status = null;
-							if(notification instanceof  OnHMIStatus){
-								status = (OnHMIStatus)notification;
-							}
-
-							//初回起動時の処理
-							if (status.getHmiLevel() == HMILevel.HMI_FULL && ((OnHMIStatus) notification).getFirstRun()) {
-
-								SetDisplayLayout setDisplayLayoutRequest = new SetDisplayLayout();
-								//SDLBootCampでは必須の設定
-								setDisplayLayoutRequest.setDisplayLayout(PredefinedLayout.NAV_FULLSCREEN_MAP.toString());
-								sdlManager.sendRPC(setDisplayLayoutRequest);
-
-								if (sdlManager.getVideoStreamManager() != null) {
-
-									//VideoStreamが有効になったら、プロジェクションを開始する
-									sdlManager.getVideoStreamManager().start(new CompletionListener() {
-										@Override
-										public void onComplete(boolean success) {
-											if (success) {
-												startProjectionMode();
-											} else {
-												Log.e(TAG, "Failed to start video streaming manager");
-											}
+								//VideoStreamが有効になったら、プロジェクションを開始する
+								sdlManager.getVideoStreamManager().start(new CompletionListener() {
+									@Override
+									public void onComplete(boolean success) {
+										if (success) {
+											startProjectionMode();
+										} else {
+											Log.e(TAG, "Failed to start video streaming manager");
 										}
-									});
-								}
-							}
-
-							//HMIが終了したらプロジェクションを終了する
-							if (status != null && status.getHmiLevel() == HMILevel.HMI_NONE) {
-								stopProjectionMode();
+									}
+								});
 							}
 						}
-					});
 
-					sdlManager.addOnRPCNotificationListener(FunctionID.ON_VEHICLE_DATA, onRPCNotificationListener);
+						//HMIが終了したらプロジェクションを終了する
+						if (status.getHmiLevel() == HMILevel.HMI_NONE) {
+							stopProjectionMode();
+						}
+					}
+				});
 
-				}
+				sdlManager.addOnRPCNotificationListener(FunctionID.ON_VEHICLE_DATA, onRPCNotificationListener);
 
-				@Override
-				public void onDestroy() {
-					SdlService.this.stopSelf();
-				}
+			}
 
-				@Override
-				public void onError(String info, Exception e) {
-				}
-			};
+			@Override
+			public void onDestroy() {
+				SdlService.this.stopSelf();
+			}
 
-			// Create App Icon, this is set in the SdlManager builder
-			SdlArtwork appIcon = new SdlArtwork(ICON_FILENAME, FileType.GRAPHIC_PNG, R.mipmap.ic_launcher, true);
+			@Override
+			public void onError(String info, Exception e) {
+			}
+		};
 
-			// The manager builder sets options for your session
-			SdlManager.Builder builder = new SdlManager.Builder(this, APP_ID, APP_NAME, listener);
-			builder.setAppTypes(appType);
-			builder.setTransportType(transport);
-			builder.setAppIcon(appIcon);
-			sdlManager = builder.build();
-			sdlManager.start();
+		// Create App Icon, this is set in the SdlManager builder
+		SdlArtwork appIcon = new SdlArtwork(getString(R.string.sdl_app_icon_file_name), FileType.GRAPHIC_PNG, R.mipmap.ic_launcher, true);
 
+		// The manager builder sets options for your session
+		SdlManager.Builder builder = new SdlManager.Builder(this, getString(R.string.sdl_app_id), getString(R.string.sdl_app_name), listener);
+		builder.setAppTypes(appType);
+		builder.setTransportType(transport);
+		builder.setAppIcon(appIcon);
+		sdlManager = builder.build();
+		sdlManager.start();
+	}
 
+	/**
+	 * transportconfigを作成する
+	 * @return
+	 */
+	private BaseTransportConfig createTransportConfig() {
+
+		//動作タイプの設定（TCP / USB(こちらは固定))
+		String transport_config = "";
+		String securiy_config = "";
+
+		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+		if (sharedPreferences.getBoolean("use_wifi", false)) {
+			transport_config = "TCP";
+		} else {
+			String usbType = "multi_high_bandwidth";
+			switch (usbType) {
+				case "multi_sec_off":
+					transport_config = "MULTI";
+					securiy_config = "OFF";
+					break;
+				case "multi_sec_low":
+					transport_config = "MULTI";
+					securiy_config = "LOW";
+
+					break;
+				case "multi_sec_med":
+					transport_config = "MULTI";
+					securiy_config = "MED";
+
+					break;
+				case "multi_sec_high":
+					transport_config = "MULTI";
+					securiy_config = "HIGH";
+
+					break;
+				case "multi_high_bandwidth":
+					transport_config = "MULTI_HB";
+					break;
+
+			}
 		}
+		BaseTransportConfig transport = null;
+		switch (transport_config) {
+			case "MULTI":
+				int securityLevel;
+
+				switch (securiy_config) {
+					case "HIGH":
+						securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_HIGH;
+						break;
+					case "MED":
+						securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_MED;
+						break;
+					case "LOW":
+						securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_LOW;
+						break;
+					default:
+						securityLevel = MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF;
+						break;
+				}
+				transport = new MultiplexTransportConfig(this, getString(R.string.sdl_app_id), securityLevel);
+				break;
+			case "MULTI_HB":
+				MultiplexTransportConfig mtc = new MultiplexTransportConfig(this, getString(R.string.sdl_app_id), MultiplexTransportConfig.FLAG_MULTI_SECURITY_OFF);
+				mtc.setRequiresHighBandwidth(true);
+				transport = mtc;
+				break;
+			case "TCP":
+				String ip = sharedPreferences.getString("sdl_ip_address", getString(R.string.sdlbootcamp_address));
+
+				int port = Integer.parseInt(getString(R.string.sdlbootcamp_port));
+				try {
+					String port_str = sharedPreferences.getString("sdl_port", getString(R.string.sdlbootcamp_port));
+					port = Integer.parseInt(port_str);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+
+				transport = new TCPTransportConfig(port, ip, true);
+				break;
+		}
+
+		return transport;
 	}
 
 	/**
 	 * プロジェクションモードを開始する
 	 */
-	private void startProjectionMode(){
+	private void startProjectionMode() {
 
-		if(sdlManager == null){
+		if (sdlManager == null) {
 			return;
 		}
 
 		//画面のサイズをとる
 		Object object = sdlManager.getSystemCapabilityManager().getCapability(SystemCapabilityType.VIDEO_STREAMING);
-		if(object instanceof VideoStreamingCapability){
-			VideoStreamingCapability capability = (VideoStreamingCapability)object;
+		if (object instanceof VideoStreamingCapability) {
+			VideoStreamingCapability capability = (VideoStreamingCapability) object;
 			Log.i(TAG, String.format("Display size Width:%d Height:%d",
 					capability.getPreferredResolution().getResolutionWidth(),
 					capability.getPreferredResolution().getResolutionHeight()));
@@ -377,6 +402,11 @@ public class SdlService extends Service {
 		parameters.getResolution().setResolutionHeight(res.getInteger(R.integer.sdlbootcamp_display_height));
 
 		sdlManager.getVideoStreamManager().startRemoteDisplayStream(getApplicationContext(), ProjectionDisplay.class, parameters, false);
+
+
+		startVhicledataReceiver();
+
+		startLocaiton();
 	}
 
 	/**
@@ -384,23 +414,112 @@ public class SdlService extends Service {
 	 */
 	private void stopProjectionMode() {
 
-		if(sdlManager == null){
+		if (sdlManager == null) {
 			return;
 		}
 
 		VideoStreamManager manager = sdlManager.getVideoStreamManager();
-		if(manager != null){
-			manager.stopStreaming();
+		if (manager != null) {
+			manager.dispose();
 		}
+
+		stopVhicledataReceiver();
+
+		stopLocation();
 	}
+
+	/**
+	 * 車載データ用Receiverの登録
+	 */
+	private void startVhicledataReceiver() {
+
+		// レシーバのフィルタをインスタンス化
+		final IntentFilter filter = new IntentFilter();
+
+		// フィルタのアクション名を設定する
+		filter.addAction(ACTION_GET_VEHICLEDATA);
+		filter.addAction(ACTION_START_SUBSCRIBE_VEHICLEDATA);
+		filter.addAction(ACTION_STOP_SUBSCRIBE_VEHICLEDATA);
+
+		receiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+
+				switch (intent.getAction()) {
+					//現在の情報を取得する
+					case ACTION_GET_VEHICLEDATA:
+						getVehicleData();
+						break;
+					//Subscribeを登録する
+					case ACTION_START_SUBSCRIBE_VEHICLEDATA:
+						startSubscribeVehicleData();
+						break;
+					//Subscribeを解除する
+					case ACTION_STOP_SUBSCRIBE_VEHICLEDATA:
+						stopSubscribeVehicleData();
+						break;
+				}
+			}
+		};
+
+		// レシーバを登録する
+		broadcastReceiver.registerReceiver(receiver, filter);
+	}
+
+	/**
+	 * 車載データ用Receiverの解除
+	 */
+	private void stopVhicledataReceiver() {
+
+		//broadcastの終了
+		broadcastReceiver.unregisterReceiver(receiver);
+	}
+
+	/**
+	 * GPSの取得開始
+	 */
+	private void startLocaiton() {
+
+		if (locationManager == null) {
+			locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+		}
+		//GPSが無効
+		if (locationManager == null || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+			Log.d(TAG, "location manager Disabled");
+			return;
+		}
+
+		//permissionが無効
+		if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			return;
+		}
+
+		//GPSを実行
+		locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 10, this);
+
+	}
+
+	/**
+	 * GPSの取得終了
+	 */
+	private void stopLocation() {
+
+		if (locationManager == null) {
+			return;
+		}
+
+		locationManager.removeUpdates(this);
+
+	}
+
 
 	/**
 	 * 利用可能なテンプレートをチェックする
 	 */
-	private void checkTemplateType(){
+	private void checkTemplateType() {
 
 		Object result = sdlManager.getSystemCapabilityManager().getCapability(SystemCapabilityType.DISPLAY);
-		if( result instanceof DisplayCapabilities){
+		if (result instanceof DisplayCapabilities) {
 			List<String> templates = ((DisplayCapabilities) result).getTemplatesAvailable();
 
 			Log.i("Templete", templates.toString());
@@ -411,7 +530,7 @@ public class SdlService extends Service {
 	/**
 	 * 利用する項目が利用可能かどうか
 	 */
-	private void checkPermission(){
+	private void checkPermission() {
 		List<PermissionElement> permissionElements = new ArrayList<>();
 
 		//チェックを行う項目
@@ -452,69 +571,97 @@ public class SdlService extends Service {
 
 		Map<String, Boolean> permissionMap = status.get(FunctionID.GET_VEHICLE_DATA).getAllowedParameters();
 		//各項目ごとの状況を表示
-		for(String key : keys){
-			Log.i("Permission",  String.format("%s Allowed:", permissionMap.get(key)));
+		for (String key : keys) {
+			Log.i("Permission", String.format("%s Allowed:", permissionMap.get(key)));
 		}
 	}
 
 	/**
 	 * 指定された車情報を取得する
 	 */
-	private void getVehicleData(){
+	private void getVehicleData() {
 
-		if(sdlManager == null){
+		if (sdlManager == null) {
 			return;
 		}
 
 		GetVehicleData vdRequest = new GetVehicleData();
 
 		//取得する車情報を設定する(すべての情報）
-		vdRequest.setGps(true);							//緯度、経度、速度などのGPSデータ
-		vdRequest.setSpeed(true);						//車速(KPH)
-		vdRequest.setRpm(true);							//エンジンの毎分回転数
-		vdRequest.setFuelLevel(true);					//タンク内の燃料レベル（パーセント）
-		vdRequest.setFuelRange(true);					//燃費
-		vdRequest.setInstantFuelConsumption(true);		//瞬間的な燃料消費量
-		vdRequest.setExternalTemperature(true);			//摂氏温度での外部温度
-		vdRequest.setVin(true);							//車両識別番号
-		vdRequest.setTirePressure(true);				//選択されたギア
-		vdRequest.setOdometer(true);					//走行距離計(Km
-		vdRequest.setBeltStatus(true);					//各シートベルトの状態
-		vdRequest.setBodyInformation(true);				//各車体の状態
-		vdRequest.setDeviceStatus(true);				//スマートフォンデバイスに関する情報
-		vdRequest.setDriverBraking(true);				//ブレーキペダルの状態
-		vdRequest.setWiperStatus(true);					//ワイパーの状態
-		vdRequest.setHeadLampStatus(true);				//ヘッドランプの状態
-		vdRequest.setEngineTorque(true);				//ディーゼル以外のエンジンのトルク値（Nm）
-		vdRequest.setEngineOilLife(true);				//エンジンの残存オイル寿命の推定割合
-		vdRequest.setAccPedalPosition(true);			//アクセルペダルの位置
-		vdRequest.setSteeringWheelAngle(true);			//ステアリングホイールの現在の角度
-		vdRequest.setAirbagStatus(true);				//車両内の各エアバッグの状態
-		vdRequest.setECallInfo(true);					//緊急通報の状況に関する情報
-		vdRequest.setEmergencyEvent(true);				//緊急の状況
-		vdRequest.setClusterModeStatus(true);			//電力モードがアクティブかどうか
-		vdRequest.setMyKey(true);						//緊急911などの情報
-		vdRequest.setTurnSignal(true);					//方向指示器の状態
-		vdRequest.setElectronicParkBrakeStatus(true);	//パークブレーキのステータス
+		vdRequest.setGps(true);                            //緯度、経度、速度などのGPSデータ
+		vdRequest.setSpeed(true);                        //車速(KPH)
+		vdRequest.setRpm(true);                            //エンジンの毎分回転数
+		vdRequest.setFuelLevel(true);                    //タンク内の燃料レベル（パーセント）
+		vdRequest.setFuelRange(true);                    //燃費
+		vdRequest.setInstantFuelConsumption(true);        //瞬間的な燃料消費量
+		vdRequest.setExternalTemperature(true);            //摂氏温度での外部温度
+		vdRequest.setVin(true);                            //車両識別番号
+		vdRequest.setTirePressure(true);                //選択されたギア
+		vdRequest.setOdometer(true);                    //走行距離計(Km
+		vdRequest.setBeltStatus(true);                    //各シートベルトの状態
+		vdRequest.setBodyInformation(true);                //各車体の状態
+		vdRequest.setDeviceStatus(true);                //スマートフォンデバイスに関する情報
+		vdRequest.setDriverBraking(true);                //ブレーキペダルの状態
+		vdRequest.setWiperStatus(true);                    //ワイパーの状態
+		vdRequest.setHeadLampStatus(true);                //ヘッドランプの状態
+		vdRequest.setEngineTorque(true);                //ディーゼル以外のエンジンのトルク値（Nm）
+		vdRequest.setEngineOilLife(true);                //エンジンの残存オイル寿命の推定割合
+		vdRequest.setAccPedalPosition(true);            //アクセルペダルの位置
+		vdRequest.setSteeringWheelAngle(true);            //ステアリングホイールの現在の角度
+		vdRequest.setAirbagStatus(true);                //車両内の各エアバッグの状態
+		vdRequest.setECallInfo(true);                    //緊急通報の状況に関する情報
+		vdRequest.setEmergencyEvent(true);                //緊急の状況
+		vdRequest.setClusterModeStatus(true);            //電力モードがアクティブかどうか
+		vdRequest.setMyKey(true);                        //緊急911などの情報
+		vdRequest.setTurnSignal(true);                    //方向指示器の状態
+		vdRequest.setElectronicParkBrakeStatus(true);    //パークブレーキのステータス
 
 
 		vdRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
 
 			@Override
 			public void onResponse(int correlationId, RPCResponse response) {
+				Log.d("SDLWebViewer", "GetVehicleData:onResponse");
 
 				JSONObject json = new JSONObject();
 
-				if(!response.getSuccess()){
+				if (!response.getSuccess()) {
 					Log.i("SdlService", "GetVehicleData was rejected.");
 				}
 
-				boolean isDummy = false;
+				SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+				boolean isDummy = sharedPreferences.getBoolean("use_dummy", false);
 
-				GetVehicleDataResponse vehicleData =  (GetVehicleDataResponse)response;
+				GetVehicleDataResponse vehicleData = (GetVehicleDataResponse) response;
 				try {
 
 					//GPS(ここは自分のGPS情報を出力する
+					GPSData gps = null;
+					if (locationManager != null) {
+						//permissionが無効
+						if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+							Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+
+
+							if(location != null) {
+								gps = new GPSData();
+								gps.setLatitudeDegrees(location.getLatitude());
+								gps.setLongitudeDegrees(location.getLongitude());
+								gps.setAltitude(location.getAltitude());
+							}
+						}
+					}
+					if(gps == null && isDummy){
+						gps = new GPSData();
+						gps.setLatitudeDegrees(35.6585805);
+						gps.setLongitudeDegrees(139.7432442);
+						gps.setAltitude(0.0);
+					}
+
+					if (gps!= null) {
+						json.put(GetVehicleDataResponse.KEY_GPS, gps.serializeJSON());
+					}
 
 					//Speed
 					Double speed = vehicleData.getSpeed();
@@ -849,6 +996,8 @@ public class SdlService extends Service {
 			return;
 		}
 
+		isSubScribeVehicleData = true;
+
 		//定期受信用のデータを設定する
 		SubscribeVehicleData subscribeRequest = new SubscribeVehicleData();
 
@@ -904,6 +1053,8 @@ public class SdlService extends Service {
 			return;
 		}
 
+		isSubScribeVehicleData = false;
+
 		UnsubscribeVehicleData unsubscribeRequest = new UnsubscribeVehicleData();
 
 		//解除する車情報を設定する(すべての情報）
@@ -954,12 +1105,12 @@ public class SdlService extends Service {
 
 		@Override
 		public void onNotified(RPCNotification notification) {
+			Log.d("SDLWebViewer", "OnRPCNotificationListener:onNotified");
+
 			OnVehicleData vehicleData = (OnVehicleData) notification;
 			JSONObject json = new JSONObject();
 
 			try {
-
-				//GPS(ここは自分のGPS情報を出力する
 
 				//Speed
 				Double speed = vehicleData.getSpeed();
@@ -1111,4 +1262,43 @@ public class SdlService extends Service {
 		}
 	};
 
+	@Override
+	public void onLocationChanged(Location location) {
+		//subscribeが有効でない場合は、情報を送らない
+		if(!isSubScribeVehicleData){
+			return;
+		}
+
+		GPSData gps = new GPSData();
+
+		gps.setLatitudeDegrees(location.getLatitude());
+		gps.setLongitudeDegrees(location.getLongitude());
+		gps.setAltitude(location.getAltitude());
+
+		JSONObject json = new JSONObject();
+
+		try {
+			json.put(GetVehicleDataResponse.KEY_GPS, gps.serializeJSON());
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+
+		//プロジェクション画面にデータを送信する
+		final Intent intent = new Intent();
+		intent.setAction(ProjectionDisplay.ACTION_VEHICLEDATA);
+		intent.putExtra("vehicle", json.toString());
+		broadcastReceiver.sendBroadcast(intent);
+	}
+
+	@Override
+	public void onStatusChanged(String s, int i, Bundle bundle) {
+	}
+
+	@Override
+	public void onProviderEnabled(String s) {
+	}
+
+	@Override
+	public void onProviderDisabled(String s) {
+	}
 }

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projection_url">https://smartdevicelink.com/</string>
+    <!--<string name="projection_url">https://www.yahoo.co.jp/</string> -->
+    <string name="projection_url">https://tanaka3.net/sdl/sdlviewer.html</string>
     <string name="application_url">https://smartdevicelink.com/</string>
+
+    <!-- SDL設定 -->
+    <string name="sdl_app_id">8678309</string>
+    <string name="sdl_app_name">SDL WebViewer</string>
+    <string name="sdl_app_icon_file_name">sdlwebviewer_icon.png</string>
 
     <!-- sdlbootcampの接続情報 -->
     <string name="sdlbootcamp_address">10.0.0.1</string>

@@ -26,12 +26,27 @@
 
     <PreferenceCategory app:title="@string/type_header">
 
+        <SwitchPreferenceCompat
+            app:key="use_backkey"
+            app:title="@string/backkey_title"
+            app:summary="@string/backkey_summary"
+            app:defaultValue="true"
+            app:useSimpleSummaryProvider="false"/>
+
+        <SwitchPreferenceCompat
+            app:key="use_dummy"
+            app:title="@string/dummy_title"
+            app:summary="@string/dummy_summary"
+            app:useSimpleSummaryProvider="false"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/type_header">
 
         <SwitchPreferenceCompat
             app:key="use_wifi"
             app:title="@string/use_wifi_title"
             app:summary="@string/use_wifi_summary"
-            app:disableDependentsState="true"
             app:useSimpleSummaryProvider="false"/>
 
         <Preference
@@ -39,7 +54,6 @@
             app:summary="@string/wifi_setting_sumary"
             app:dependency="use_wifi"
             app:fragment="net.masaya3.sdlwebviewer.SettingsActivity$WifiSettingsFragment" />
-
 
     </PreferenceCategory>
 

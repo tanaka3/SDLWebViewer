@@ -1,42 +1,40 @@
 <resources>
     <string name="app_name">SDLWebViewer</string>
-    <string name="title_activity_settings">Settings</string>
+    <string name="title_activity_settings">設定</string>
 
-    <!-- Preference Titles -->
-    <string name="messages_header">Messages</string>
-    <string name="sync_header">Sync</string>
-
+    <!-- 設定画面 -->
     <string name="url_header">URL</string>
     <string name="use_setting_title">URLの設定</string>
     <string name="use_setting_summary">アプリおよび車載器で表示するURLを設定します</string>
 
+    <string name="setting_header">動作</string>
+    <string name="backkey_title">バックキーの表示</string>
+    <string name="backkey_summary">車載器でバックキーを表示します</string>
+
+    <string name="dummy_title">ダミーデータの使用</string>
+    <string name="dummy_summary">一部でダミーデータを使用します</string>
 
     <string name="type_header">接続方法</string>
 
     <string name="use_wifi_title">Wifiで接続する</string>
-    <string name="use_wifi_summary">車載器とWiFi接続する場合は、ONにします</string>
+    <string name="use_wifi_summary">車載器とWiFi接続を行います</string>
 
     <string name="wifi_setting_title">接続先の設定</string>
     <string name="wifi_setting_sumary">WiFi接続先の情報を設定します</string>
 
-
-    <!-- -->
     <string name="main_web_url_title">メイン画面のURL</string>
     <string name="main_web_url_summary">メイン画面に表示するURLを設定します</string>
 
     <string name="sdl_web_url_title">車載画面のURL</string>
     <string name="sdl_web_url_summary">車載画面に表示するURLを設定します</string>
 
-    <!-- -->
     <string name="ip_address_title">車載器のIPアドレス</string>
     <string name="ip_address_summary">車載器のIPアドレスを設定します</string>
 
     <string name="port_title">車載器のポート番号</string>
     <string name="port_summary">車載器のポート番号を設定にします</string>
 
-
-
-
+    <!-- メニュー -->
     <string name="menu_setting">設定</string>
     <string name="menu_end">終了</string>
 </resources>

@@ -3,32 +3,37 @@
    <meta name="viewport" content="width=device-width,initial-scale=1">
    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
    <script type="text/javascript">
-      google.charts.load('current', {'packages':['gauge']});
-      google.charts.setOnLoadCallback(drawChart);
 
-      window.onload = function() {
-      }
+      var data = null;
+      var chart = null;
 
-      function drawChart() {
-
-        var data = google.visualization.arrayToDataTable([
-          ['Label', 'Value'],
-          ['Speed', 180],
-          ['RPM', 10000],
-          ['Accl', 100]
-        ]);
-
-        var options = {
-          width: 780, height: 480,
+      var options = {
+          width: 700, height: 480,
           redFrom: 90, redTo: 100,
           yellowFrom:75, yellowTo: 90,
           minorTicks: 5
         };
+      
+      window.onload = function() {
+        google.charts.load('current', {'packages':['gauge']});
+        google.charts.setOnLoadCallback(drawChart);
+      }
 
-        var chart = new google.visualization.Gauge(document.getElementById('chart_div'));
+      function drawChart() {
 
+        data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Speed', 180],
+          ['RPM', 10000]
+          //['Accl', 100]
+        ]);
+
+        chart = new google.visualization.Gauge(document.getElementById('chart_div'));
         chart.draw(data, options);
 
+        data.setValue(0, 1, 0);
+        data.setValue(1, 1, 0);
+        chart.draw(data, options);
         /*
         setInterval(function() {
           data.setValue(0, 1, 40 + Math.round(60 * Math.random()));
@@ -43,27 +48,38 @@
           chart.draw(data, options);
         }, 26000);
         */
+        sdl.getVehicleData();
     }
 
     function getVehicleData(json){
-        
-        vehicleData = JSON.parse(json);
-        if ('speed' in json){
-            data.setValue(0, 1, vehicleData.speed);
+        //var json = '{"gps":{"altitude":41.572509765625,"latitudeDegrees":34.44635682,"longitudeDegrees":135.35284342},"speed":88.88,"rpm":9999,"fuelLevel":55.55,"fuelRange":[{"range":22.22,"type":"GASOLINE"}],"instantFuelConsumption":11.11,"externalTemperature":23.23,"vin":"52-452-52-752","tirePressure":{"leftRear":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"innerLeftRear":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"leftFront":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"pressureTellTale":"ON","rightFront":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"innerRightRear":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"}},"odometer":7777,"beltStatus":{"leftRow3BuckleBelted":"YES","passengerBuckleBelted":"YES","driverBeltDeployed":"YES","rightRow3BuckleBelted":"YES","middleRow3BuckleBelted":"YES","driverBuckleBelted":"YES","middleRow1BeltDeployed":"YES","leftRow2BuckleBelted":"YES","rearInflatableBelted":"YES","middleRow1BuckleBelted":"YES","rightRow2BuckleBelted":"YES","passengerChildDetected":"YES","rightRearInflatableBelted":"YES","passengerBeltDeployed":"YES","middleRow2BuckleBelted":"YES"},"bodyInformation":{"rearLeftDoorAjar":true,"parkBrakeActive":true,"driverDoorAjar":true,"rearRightDoorAjar":true,"ignitionStableStatus":"IGNITION_SWITCH_STABLE","passengerDoorAjar":true,"ignitionStatus":"RUN"},"deviceStatus":{"textMsgAvailable":true,"phoneRoaming":true,"voiceRecOn":true,"signalLevelStatus":"ZERO_LEVEL_BARS","stereoAudioOutputMuted":true,"battLevelStatus":"ZERO_LEVEL_BARS","primaryAudioSource":"USB","monoAudioOutputMuted":true,"eCallEventActive":true,"callActive":true,"btIconOn":true},"driverBraking":"YES","wiperStatus":"AUTO_HIGH","headLampStatus":{"lowBeamsOn":true,"ambientLightSensorStatus":"NIGHT","highBeamsOn":true},"engineTorque":1111.11,"engineOilLife":55.55,"accPedalPosition":44.44,"steeringWheelAngle":128,"airbagStatus":{"driverAirbagDeployed":"YES","driverKneeAirbagDeployed":"YES","passengerAirbagDeployed":"YES","passengerSideAirbagDeployed":"YES","passengerCurtainAirbagDeployed":"YES","driverSideAirbagDeployed":"YES","driverCurtainAirbagDeployed":"YES","passengerKneeAirbagDeployed":"YES"},"eCallInfo":{"eCallConfirmationStatus":"CALL_IN_PROGRESS","eCallNotificationStatus":"ACTIVE","auxECallNotificationStatus":"ACTIVE"},"emergencyEvent":{"maximumChangeVelocity":100,"emergencyEventType":"FRONTAL","fuelCutoffStatus":"TERMINATE_FUEL","multipleEvents":"YES","rolloverEvent":"YES"},"clusterModeStatus":{"powerModeStatus":"KEY_APPROVED_0","powerModeActive":true,"carModeStatus":"NORMAL","powerModeQualificationStatus":"POWER_MODE_OK"},"myKey":{"e911Override":"ON"},"turnSignal":"BOTH","electronicParkBrakeStatus":"CLOSED"}';
+        var vehicleData = JSON.parse(json);
+        if ('speed' in vehicleData){
+            var value = (vehicleData.speed / 180) * 100;
+            if(value > 180){
+              value = 180;
+            }
+            data.setValue(0, 1, value);
             chart.draw(data, options);
         }
-        if ('rpm' in json){
-            data.setValue(1, 1, vehicleData,rpm);
+        if ('rpm' in vehicleData){
+            var value = (vehicleData.rpm / 10000) * 100;
+            if(value > 10000){
+              value = 10000;
+            }
+            data.setValue(1, 1, value);
             chart.draw(data, options);
         }
+        /*
         if ('accPedalPosition' in json){
             data.setValue(2, 1, vehicleData.accPedalPosition);
-            chart.draw(data, options);
         }
+        chart.draw(data, options);
+        */
     }
     </script>
   </head>
   <body>
-    <div id="chart_div" style="width: 800px; height: 480px;"></div>
+    <div id="chart_div" style="width: 700px; height: 480px;"></div>
   </body>
 </html>

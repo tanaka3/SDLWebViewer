@@ -14,18 +14,24 @@ import androidx.preference.PreferenceManager;
 
 import net.masaya3.sdlwebviewer.sdl.SdlReceiver;
 import net.masaya3.sdlwebviewer.sdl.SdlService;
+import net.taptappun.taku.kobayashi.runtimepermissionchecker.RuntimePermissionChecker;
 
 /**
  * メイン画面
  */
 public class MainActivity extends AppCompatActivity {
+    private static final int REQUEST_CODE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setTheme(R.style.NoActionBar);
         setContentView(R.layout.activity_main);
 
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        //permission
+        RuntimePermissionChecker.requestAllPermissions(this, REQUEST_CODE);
 
         //If we are connected to a module we want to start our SdlService
         if(sharedPreferences.getBoolean("use_wifi", false)) {
@@ -39,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        getSupportActionBar().setIcon(android.R.drawable.sym_def_app_icon);
+        getSupportActionBar().setIcon(R.drawable.ic_titile);
         //getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         //getSupportActionBar().setHomeAsUpIndicator(android.R.drawable.sym_def_app_icon);
 
@@ -63,6 +69,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
+     * permissionチェック
+     * @param requestCode
+     * @param permissions
+     * @param grantResults
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        if (requestCode != REQUEST_CODE)
+            return;
+        /*
+        if(!RuntimePermissionChecker.existConfirmPermissions(this)){
+            // write features you want to execute.
+        }*/
+    }
+
+    /**
      * メニューの作成
      * @param menu
      * @return
@@ -82,13 +104,17 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
 
         switch (item.getItemId()) {
-            case R.id.action_menu_setting:
+            case R.id.action_menu_setting: {
                 Intent intent = new Intent(this, SettingsActivity.class);
                 startActivity(intent);
                 return true;
-            case R.id.action_menu_end:
-                this.finish();
+            }
+            case R.id.action_menu_end: {
+                Intent intent = new Intent(MainActivity.this, SdlService.class);
+                stopService(intent);
+                finish();
                 return true;
+            }
         }
 
         return super.onOptionsItemSelected(item);
