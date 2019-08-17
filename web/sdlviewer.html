@@ -92,7 +92,7 @@
             chart_rpm.draw(data_rpm, option_rpm);
         }
 
-        if ('accPedalPosition' in json){
+        if ('accPedalPosition' in vehicleData){
           var value = vehicleData.accPedalPosition;
             if(value > 100){
               value = 100;
@@ -106,7 +106,7 @@
     </script>
   </head>
   <body>
-    <div style="margin-top: 70px">
+    <div style="margin-top: 120px">
       <div id="chart_speed_div" style="float: left; width: 170px; height: 170px;"></div>
       <div id="chart_rpm_div" style="float: left; width: 170px; height: 170px;"></div>
       <div id="chart_accl_div" style="float: left; width: 170px; height: 170px;"></div>

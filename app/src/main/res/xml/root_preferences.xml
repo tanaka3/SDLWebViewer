@@ -24,7 +24,7 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/type_header">
+    <PreferenceCategory app:title="@string/setting_header">
 
         <SwitchPreferenceCompat
             app:key="use_backkey"

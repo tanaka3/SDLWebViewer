@@ -16,4 +16,7 @@
     <!-- sdlbootcampの画面サイズ -->
     <integer name="sdlbootcamp_display_width">800</integer>
     <integer name="sdlbootcamp_display_height">480</integer>
+
+    <!-- usb connection setting -->
+    <string name="use_connection_setting">multi_high_bandwidth</string>
 </resources>

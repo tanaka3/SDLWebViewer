@@ -103,11 +103,12 @@ import java.util.Vector;
 
 public class SdlService extends Service implements LocationListener {
 
+	//車両データ取得関連のACTION
 	public static final String ACTION_GET_VEHICLEDATA = "action_get_vhicledata";
 	public static final String ACTION_START_SUBSCRIBE_VEHICLEDATA = "action_start_vhicledata";
 	public static final String ACTION_STOP_SUBSCRIBE_VEHICLEDATA = "action_stop_vhicledata";
 
-	private static final String TAG = "SDL Service";
+	private static final String TAG = "SDLWebViewer";
 
 	private static final int FOREGROUND_SERVICE_ID = 111;
 
@@ -126,7 +127,6 @@ public class SdlService extends Service implements LocationListener {
 	// GPS情報の取得
 	private LocationManager locationManager;
 
-
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
@@ -134,7 +134,6 @@ public class SdlService extends Service implements LocationListener {
 
 	@Override
 	public void onCreate() {
-		Log.d(TAG, "onCreate");
 		super.onCreate();
 
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -304,7 +303,7 @@ public class SdlService extends Service implements LocationListener {
 		if (sharedPreferences.getBoolean("use_wifi", false)) {
 			transport_config = "TCP";
 		} else {
-			String usbType = "multi_high_bandwidth";
+			String usbType = getString(R.string.use_connection_setting);
 			switch (usbType) {
 				case "multi_sec_off":
 					transport_config = "MULTI";
@@ -379,6 +378,7 @@ public class SdlService extends Service implements LocationListener {
 	 * プロジェクションモードを開始する
 	 */
 	private void startProjectionMode() {
+		Log.i(TAG,"startProjectionMode");
 
 		if (sdlManager == null) {
 			return;
@@ -403,7 +403,6 @@ public class SdlService extends Service implements LocationListener {
 
 		sdlManager.getVideoStreamManager().startRemoteDisplayStream(getApplicationContext(), ProjectionDisplay.class, parameters, false);
 
-
 		startVhicledataReceiver();
 
 		startLocaiton();
@@ -413,6 +412,7 @@ public class SdlService extends Service implements LocationListener {
 	 * プロジェクションモードを停止する
 	 */
 	private void stopProjectionMode() {
+		Log.i(TAG,"stopProjectionMode");
 
 		if (sdlManager == null) {
 			return;
@@ -432,6 +432,7 @@ public class SdlService extends Service implements LocationListener {
 	 * 車載データ用Receiverの登録
 	 */
 	private void startVhicledataReceiver() {
+		Log.i(TAG,"startVhicledataReceiver");
 
 		// レシーバのフィルタをインスタンス化
 		final IntentFilter filter = new IntentFilter();
@@ -444,10 +445,11 @@ public class SdlService extends Service implements LocationListener {
 		receiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-
+				Log.d(TAG, "BroadcastReceiver:"+ intent.getAction());
 				switch (intent.getAction()) {
 					//現在の情報を取得する
 					case ACTION_GET_VEHICLEDATA:
+
 						getVehicleData();
 						break;
 					//Subscribeを登録する
@@ -479,18 +481,20 @@ public class SdlService extends Service implements LocationListener {
 	 * GPSの取得開始
 	 */
 	private void startLocaiton() {
+		Log.i(TAG,"startLocaiton");
 
 		if (locationManager == null) {
 			locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 		}
 		//GPSが無効
-		if (locationManager == null || locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+		if (locationManager == null || !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
 			Log.d(TAG, "location manager Disabled");
 			return;
 		}
 
 		//permissionが無効
 		if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+			Log.d(TAG, "location permission Disabled");
 			return;
 		}
 
@@ -503,6 +507,7 @@ public class SdlService extends Service implements LocationListener {
 	 * GPSの取得終了
 	 */
 	private void stopLocation() {
+		Log.i(TAG,"stopLocation");
 
 		if (locationManager == null) {
 			return;
@@ -621,7 +626,7 @@ public class SdlService extends Service implements LocationListener {
 
 			@Override
 			public void onResponse(int correlationId, RPCResponse response) {
-				Log.d("SDLWebViewer", "GetVehicleData:onResponse");
+				Log.d(TAG, "GetVehicleData:onResponse");
 
 				JSONObject json = new JSONObject();
 
@@ -991,6 +996,7 @@ public class SdlService extends Service implements LocationListener {
 	 * 指定された車情報の定期取得の開始
 	 */
 	private void startSubscribeVehicleData(){
+		Log.i(TAG,"startSubscribeVehicleData");
 
 		if(sdlManager == null){
 			return;
@@ -1033,9 +1039,9 @@ public class SdlService extends Service implements LocationListener {
 			@Override
 			public void onResponse(int correlationId, RPCResponse response) {
 				if (response.getSuccess()) {
-					Log.i("SdlService", "Successfully subscribed to vehicle data.");
+					Log.i(TAG, "Successfully subscribed to vehicle data.");
 				} else {
-					Log.i("SdlService", "Request to subscribe to vehicle data was rejected.");
+					Log.i(TAG, "Request to subscribe to vehicle data was rejected.");
 				}
 			}
 		});
@@ -1048,6 +1054,7 @@ public class SdlService extends Service implements LocationListener {
 	 * 指定された車情報の定期取得の終了
 	 */
 	private void stopSubscribeVehicleData(){
+		Log.i(TAG,"stopSubscribeVehicleData");
 
 		if(sdlManager == null){
 			return;
@@ -1105,7 +1112,7 @@ public class SdlService extends Service implements LocationListener {
 
 		@Override
 		public void onNotified(RPCNotification notification) {
-			Log.d("SDLWebViewer", "OnRPCNotificationListener:onNotified");
+			Log.d(TAG, "OnRPCNotificationListener:onNotified");
 
 			OnVehicleData vehicleData = (OnVehicleData) notification;
 			JSONObject json = new JSONObject();
@@ -1264,6 +1271,8 @@ public class SdlService extends Service implements LocationListener {
 
 	@Override
 	public void onLocationChanged(Location location) {
+		Log.d(TAG, "onLocationChanged");
+
 		//subscribeが有効でない場合は、情報を送らない
 		if(!isSubScribeVehicleData){
 			return;

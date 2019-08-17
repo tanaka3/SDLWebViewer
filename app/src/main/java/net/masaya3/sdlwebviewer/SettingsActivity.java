@@ -10,6 +10,9 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
+/**
+ * 設定画面
+ */
 public class SettingsActivity extends AppCompatActivity
         implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback{
 
@@ -32,7 +35,6 @@ public class SettingsActivity extends AppCompatActivity
     @Override
     public boolean onPreferenceStartFragment(PreferenceFragmentCompat caller, Preference pref) {
 
-        // Instantiate the new Fragment
         final Bundle args = pref.getExtras();
         final Fragment fragment = getSupportFragmentManager().getFragmentFactory().instantiate(
                 getClassLoader(),
@@ -40,7 +42,6 @@ public class SettingsActivity extends AppCompatActivity
         fragment.setArguments(args);
         fragment.setTargetFragment(caller, 0);
 
-        // Replace the existing Fragment with the new Fragment
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.settings, fragment)
                 .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
@@ -58,8 +59,7 @@ public class SettingsActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            // ActionBarの矢印がクリックされたとき、Backボタンと同等の処理をする
-            // 前のFragmentに戻るのではなくActivity自体を終了させたい場合は代わりに finish();
+            //戻るボタンタップ時の処理
             onBackPressed();
             return true;
         }
@@ -67,6 +67,9 @@ public class SettingsActivity extends AppCompatActivity
     }
 
 
+    /**
+     * Rootの設定画面
+     */
     public static class SettingsFragment extends PreferenceFragmentCompat {
 
 
@@ -86,6 +89,9 @@ public class SettingsActivity extends AppCompatActivity
     }
 
 
+    /**
+     * Wifi設定用のサブ画面
+     */
     public static class WifiSettingsFragment extends PreferenceFragmentCompat {
 
         @Override
@@ -94,6 +100,9 @@ public class SettingsActivity extends AppCompatActivity
         }
     }
 
+    /**
+     * URL設定用のサブ画面
+     */
     public static class URLSettingsFragment extends PreferenceFragmentCompat {
 
         @Override

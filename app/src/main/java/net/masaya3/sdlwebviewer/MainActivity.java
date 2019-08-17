@@ -20,19 +20,21 @@ import net.taptappun.taku.kobayashi.runtimepermissionchecker.RuntimePermissionCh
  * メイン画面
  */
 public class MainActivity extends AppCompatActivity {
+
     private static final int REQUEST_CODE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setTheme(R.style.NoActionBar);
         setContentView(R.layout.activity_main);
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-
-        //permission
+        //permissionチェック
         RuntimePermissionChecker.requestAllPermissions(this, REQUEST_CODE);
 
+        //設定状態に応じて状況を変える
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         //If we are connected to a module we want to start our SdlService
         if(sharedPreferences.getBoolean("use_wifi", false)) {
             Intent proxyIntent = new Intent(this, SdlService.class);
@@ -44,14 +46,11 @@ public class MainActivity extends AppCompatActivity {
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
         getSupportActionBar().setIcon(R.drawable.ic_titile);
-        //getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        //getSupportActionBar().setHomeAsUpIndicator(android.R.drawable.sym_def_app_icon);
 
         //SDLのService起動
         //アプリケーション用のURLを取得する
-        String url = sharedPreferences.getString("main_url", getString(R.string.application_url));
+        String url = sharedPreferences.getString("main_web_url", getString(R.string.application_url));
         if(url.isEmpty()){
             url = getString(R.string.application_url);
         }
@@ -65,6 +64,10 @@ public class MainActivity extends AppCompatActivity {
 
         //Javascriptを有効にする
         webView.getSettings().setJavaScriptEnabled(true);
+        //スクリプト内部での <script src="..."> を動作可能にする
+        webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
+        //スクリプトからのローカルファイルへのアクセスを許可する
+        webView.getSettings().setAllowFileAccessFromFileURLs(true);
 
     }
 
@@ -76,12 +79,9 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        if (requestCode != REQUEST_CODE)
+        if (requestCode != REQUEST_CODE) {
             return;
-        /*
-        if(!RuntimePermissionChecker.existConfirmPermissions(this)){
-            // write features you want to execute.
-        }*/
+        }
     }
 
     /**
@@ -104,11 +104,13 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
 
         switch (item.getItemId()) {
+            //設定画面
             case R.id.action_menu_setting: {
                 Intent intent = new Intent(this, SettingsActivity.class);
                 startActivity(intent);
                 return true;
             }
+            //サービス含め終了させる
             case R.id.action_menu_end: {
                 Intent intent = new Intent(MainActivity.this, SdlService.class);
                 stopService(intent);

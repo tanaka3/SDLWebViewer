@@ -27,6 +27,7 @@ import net.masaya3.sdlwebviewer.R;
  */
 public class ProjectionDisplay extends SdlRemoteDisplay {
 
+    //車両データ送信用ACTION
     public static final String ACTION_VEHICLEDATA = "action_vhicledata";
 
     /**
@@ -54,43 +55,31 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
         public void getVehicleData(){
             Log.d("SDLWebViewer", "JavaScript:getVehicleData");
 
+            //service側に取得用メッセージを送信する
             final Intent intent = new Intent();
             intent.setAction(SdlService.ACTION_GET_VEHICLEDATA);
             manager.sendBroadcast(intent);
         }
     }
 
-
     // ブロードキャストマネージャ
     private LocalBroadcastManager broadcastReceiver;
-
-    //WebView
+    // WebView
     private WebView webView;
+    // BroadcastReceiver
+    private BroadcastReceiver receiver;
 
-    // レシーバ
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d("SDLWebViewer", "receiver:onReceive");
-
-            if(!intent.getAction().equals(ACTION_VEHICLEDATA)){
-                return;
-            }
-
-            String json = intent.getStringExtra("vehicle");
-
-            Log.d("SDLWebViewer","reciver:" + json);
-
-            webView.loadUrl(String.format("javascript:getVehicleData('%s')", json));
-        }
-    };
-
+    /**
+     * コンストラクア
+     * @param context
+     * @param display
+     */
     public ProjectionDisplay(Context context, Display display) {
         super(context, display);
     }
 
     /**
-     * onStart
+     * onStart時
      */
     @Override
     protected void onStart() {
@@ -98,6 +87,25 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
 
         //broadcastの登録
         broadcastReceiver = LocalBroadcastManager.getInstance(getContext());
+
+        //車両情報をHtml側に送信する
+        receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Log.d("SDLWebViewer", "receiver:onReceive");
+
+                if(!intent.getAction().equals(ACTION_VEHICLEDATA)){
+                    return;
+                }
+
+                String json = intent.getStringExtra("vehicle");
+
+                Log.d("SDLWebViewer","reciver:" + json);
+
+                webView.loadUrl(String.format("javascript:getVehicleData('%s')", json));
+            }
+        };
+
 
         // レシーバのフィルタをインスタンス化
         final IntentFilter filter = new IntentFilter();
@@ -113,7 +121,7 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
     }
 
     /**
-     * Stop
+     * Stop時
      */
     @Override
     protected void onStop() {
@@ -129,7 +137,6 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
     }
 
     @SuppressLint("JavascriptInterface")
-    //@SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -137,7 +144,7 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
 
         //アプリケーション用のURLを取得する
         final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-        String url = sharedPreferences.getString("sdl_url", getContext().getString(R.string.projection_url));
+        String url = sharedPreferences.getString("sdl_web_url", getContext().getString(R.string.projection_url));
         if(url.isEmpty()){
             url =  getContext().getString(R.string.projection_url);
         }
@@ -149,6 +156,7 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
         backbutton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                Log.d("SDLWebViewer","goBack");
                 if(webView.canGoBack()){
                     webView.goBack();
                 }
@@ -162,12 +170,16 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
 
         //ホームボタン
         AppCompatImageView homebutton = (AppCompatImageView)findViewById(R.id.homeButton);
-        backbutton.setOnClickListener(new View.OnClickListener() {
+        homebutton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(webView.canGoBack()){
-                    webView.goBack();
+                Log.d("SDLWebViewer","goHome");
+                String url = sharedPreferences.getString("sdl_web_url", getContext().getString(R.string.projection_url));
+                if(url.isEmpty()){
+                    url =  getContext().getString(R.string.projection_url);
                 }
+                //URLを指定する
+                webView.loadUrl(url);
             }
         });
 
@@ -181,9 +193,8 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
         reloadbutton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(webView.canGoBack()){
-                    webView.goBack();
-                }
+                Log.d("SDLWebViewer","reload");
+                webView.reload();
             }
         });
 
@@ -192,7 +203,7 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
             reloadbutton.setVisibility(View.GONE);
         }
 
-
+        //Webviewの設定
         webView.setWebViewClient(new WebViewClient(){});
 
         //URLを指定する
@@ -200,12 +211,10 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
 
         //Javascriptを有効にする
         webView.getSettings().setJavaScriptEnabled(true);
-
         //スクリプト内部での <script src="..."> を動作可能にする
         webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
         //スクリプトからのローカルファイルへのアクセスを許可する
         webView.getSettings().setAllowFileAccessFromFileURLs(true);
-
         //sdl用Javascriptコールバックの追加
         webView.addJavascriptInterface(new JavaScript(getContext()), "sdl");
 

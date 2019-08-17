@@ -17,13 +17,13 @@
 <androidx.preference.PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <EditTextPreference
-        app:key="main_web_url_title"
+        app:key="main_web_url"
         app:title="@string/main_web_url_title"
         app:summary="@string/main_web_url_summary"
         app:useSimpleSummaryProvider="true" />
 
     <EditTextPreference
-        app:key="sdl_web_url_title"
+        app:key="sdl_web_url"
         app:title="@string/sdl_web_url_title"
         app:summary="@string/sdl_web_url_summary"
         app:useSimpleSummaryProvider="true" />
