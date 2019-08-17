@@ -8,11 +8,17 @@
     <string name="use_setting_summary">アプリおよび車載器で表示するURLを設定します</string>
 
     <string name="setting_header">動作</string>
-    <string name="backkey_title">バックキーの表示</string>
-    <string name="backkey_summary">車載器でバックキーを表示します</string>
+
+    <string name="backkey_title">バックボタンの表示</string>
+    <string name="backkey_summary">車載器でバックボタンを表示します</string>
+    <string name="homekey_title">ホームボタンの表示</string>
+    <string name="homekey_summary">車載器でホームボタンを表示します</string>
+    <string name="reloadkey_title">リロードボタンの表示</string>
+    <string name="reloadkey_summary">車載機でリロードボタンを表示します。</string>
+
 
     <string name="dummy_title">ダミーデータの使用</string>
-    <string name="dummy_summary">一部でダミーデータを使用します</string>
+    <string name="dummy_summary">車情報で一部でダミーデータを使用します</string>
 
     <string name="type_header">接続方法</string>
 

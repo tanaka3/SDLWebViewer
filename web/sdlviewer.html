@@ -4,16 +4,36 @@
    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
    <script type="text/javascript">
 
-      var data = null;
-      var chart = null;
+      var data_speed = null;
+      var data_rpm = null;
+      var data_accl = null;
 
-      var options = {
-          width: 700, height: 480,
+      var chart_speed = null;
+      var chart_rpm = null;
+      var chart_accl = null;
+
+      var option_speed = {
+          width: 170, height: 170,
+          max:180, min:0,
+          redFrom: 160, redTo: 180,
+          yellowFrom: 140, yellowTo: 160,
+          minorTicks: 10
+        };
+      var option_rpm = {
+          width: 170, height: 170,
+          max:10000, min:0,
+          redFrom: 9000, redTo: 10000,
+          yellowFrom:7500, yellowTo: 9000,
+          minorTicks: 100
+        };
+      var option_accl = {
+          width: 170, height: 170,
+          max:100, min:0,
           redFrom: 90, redTo: 100,
           yellowFrom:75, yellowTo: 90,
-          minorTicks: 5
+          minorTicks: 10
         };
-      
+
       window.onload = function() {
         google.charts.load('current', {'packages':['gauge']});
         google.charts.setOnLoadCallback(drawChart);
@@ -21,33 +41,34 @@
 
       function drawChart() {
 
-        data = google.visualization.arrayToDataTable([
+        data_speed = google.visualization.arrayToDataTable([
           ['Label', 'Value'],
-          ['Speed', 180],
-          ['RPM', 10000]
-          //['Accl', 100]
+          ['Speed', 0]
         ]);
 
-        chart = new google.visualization.Gauge(document.getElementById('chart_div'));
-        chart.draw(data, options);
+        data_rpm = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['RPM', 0]
+        ]);
 
+        data_accl = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Accl', 0]
+        ]);
+
+        chart_speed = new google.visualization.Gauge(document.getElementById('chart_speed_div'));
+        chart_rpm = new google.visualization.Gauge(document.getElementById('chart_rpm_div'));
+        chart_accl = new google.visualization.Gauge(document.getElementById('chart_accl_div'));
+
+/*
         data.setValue(0, 1, 0);
         data.setValue(1, 1, 0);
-        chart.draw(data, options);
-        /*
-        setInterval(function() {
-          data.setValue(0, 1, 40 + Math.round(60 * Math.random()));
-          chart.draw(data, options);
-        }, 13000);
-        setInterval(function() {
-          data.setValue(1, 1, 40 + Math.round(60 * Math.random()));
-          chart.draw(data, options);
-        }, 5000);
-        setInterval(function() {
-          data.setValue(2, 1, 60 + Math.round(20 * Math.random()));
-          chart.draw(data, options);
-        }, 26000);
-        */
+        data.setValue(2, 1, 0);
+*/
+        chart_speed.draw(data_speed, option_speed);
+        chart_rpm.draw(data_rpm, option_rpm);
+        chart_accl.draw(data_accl, option_accl);
+
         sdl.getVehicleData();
     }
 
@@ -55,31 +76,40 @@
         //var json = '{"gps":{"altitude":41.572509765625,"latitudeDegrees":34.44635682,"longitudeDegrees":135.35284342},"speed":88.88,"rpm":9999,"fuelLevel":55.55,"fuelRange":[{"range":22.22,"type":"GASOLINE"}],"instantFuelConsumption":11.11,"externalTemperature":23.23,"vin":"52-452-52-752","tirePressure":{"leftRear":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"innerLeftRear":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"leftFront":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"pressureTellTale":"ON","rightFront":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"},"innerRightRear":{"status":"NORMAL","pressure":240,"tpms":"SYSTEM_ACTIVE"}},"odometer":7777,"beltStatus":{"leftRow3BuckleBelted":"YES","passengerBuckleBelted":"YES","driverBeltDeployed":"YES","rightRow3BuckleBelted":"YES","middleRow3BuckleBelted":"YES","driverBuckleBelted":"YES","middleRow1BeltDeployed":"YES","leftRow2BuckleBelted":"YES","rearInflatableBelted":"YES","middleRow1BuckleBelted":"YES","rightRow2BuckleBelted":"YES","passengerChildDetected":"YES","rightRearInflatableBelted":"YES","passengerBeltDeployed":"YES","middleRow2BuckleBelted":"YES"},"bodyInformation":{"rearLeftDoorAjar":true,"parkBrakeActive":true,"driverDoorAjar":true,"rearRightDoorAjar":true,"ignitionStableStatus":"IGNITION_SWITCH_STABLE","passengerDoorAjar":true,"ignitionStatus":"RUN"},"deviceStatus":{"textMsgAvailable":true,"phoneRoaming":true,"voiceRecOn":true,"signalLevelStatus":"ZERO_LEVEL_BARS","stereoAudioOutputMuted":true,"battLevelStatus":"ZERO_LEVEL_BARS","primaryAudioSource":"USB","monoAudioOutputMuted":true,"eCallEventActive":true,"callActive":true,"btIconOn":true},"driverBraking":"YES","wiperStatus":"AUTO_HIGH","headLampStatus":{"lowBeamsOn":true,"ambientLightSensorStatus":"NIGHT","highBeamsOn":true},"engineTorque":1111.11,"engineOilLife":55.55,"accPedalPosition":44.44,"steeringWheelAngle":128,"airbagStatus":{"driverAirbagDeployed":"YES","driverKneeAirbagDeployed":"YES","passengerAirbagDeployed":"YES","passengerSideAirbagDeployed":"YES","passengerCurtainAirbagDeployed":"YES","driverSideAirbagDeployed":"YES","driverCurtainAirbagDeployed":"YES","passengerKneeAirbagDeployed":"YES"},"eCallInfo":{"eCallConfirmationStatus":"CALL_IN_PROGRESS","eCallNotificationStatus":"ACTIVE","auxECallNotificationStatus":"ACTIVE"},"emergencyEvent":{"maximumChangeVelocity":100,"emergencyEventType":"FRONTAL","fuelCutoffStatus":"TERMINATE_FUEL","multipleEvents":"YES","rolloverEvent":"YES"},"clusterModeStatus":{"powerModeStatus":"KEY_APPROVED_0","powerModeActive":true,"carModeStatus":"NORMAL","powerModeQualificationStatus":"POWER_MODE_OK"},"myKey":{"e911Override":"ON"},"turnSignal":"BOTH","electronicParkBrakeStatus":"CLOSED"}';
         var vehicleData = JSON.parse(json);
         if ('speed' in vehicleData){
-            var value = (vehicleData.speed / 180) * 100;
+            var value = vehicleData.speed;
             if(value > 180){
               value = 180;
             }
-            data.setValue(0, 1, value);
-            chart.draw(data, options);
+            data_speed.setValue(0, 1, value);
+            chart_speed.draw(data_speed, option_speed);
         }
         if ('rpm' in vehicleData){
-            var value = (vehicleData.rpm / 10000) * 100;
+            var value = vehicleData.rpm;
             if(value > 10000){
               value = 10000;
             }
-            data.setValue(1, 1, value);
-            chart.draw(data, options);
+            data_rpm.setValue(0, 1, value);
+            chart_rpm.draw(data_rpm, option_rpm);
         }
-        /*
+
         if ('accPedalPosition' in json){
-            data.setValue(2, 1, vehicleData.accPedalPosition);
+          var value = vehicleData.accPedalPosition;
+            if(value > 100){
+              value = 100;
+            }          
+            data_accl.setValue(0, 1, value);
+            chart_accl.draw(data_accl, option_accl);
         }
-        chart.draw(data, options);
-        */
+
+
     }
     </script>
   </head>
   <body>
-    <div id="chart_div" style="width: 700px; height: 480px;"></div>
+    <div style="margin-top: 70px">
+      <div id="chart_speed_div" style="float: left; width: 170px; height: 170px;"></div>
+      <div id="chart_rpm_div" style="float: left; width: 170px; height: 170px;"></div>
+      <div id="chart_accl_div" style="float: left; width: 170px; height: 170px;"></div>
+    </div>
   </body>
 </html>

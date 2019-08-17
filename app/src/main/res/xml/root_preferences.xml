@@ -34,9 +34,24 @@
             app:useSimpleSummaryProvider="false"/>
 
         <SwitchPreferenceCompat
+            app:key="use_homekey"
+            app:title="@string/homekey_title"
+            app:summary="@string/homekey_summary"
+            app:defaultValue="true"
+            app:useSimpleSummaryProvider="false"/>
+
+        <SwitchPreferenceCompat
+            app:key="use_reloadkey"
+            app:title="@string/reloadkey_title"
+            app:summary="@string/reloadkey_summary"
+            app:defaultValue="true"
+            app:useSimpleSummaryProvider="false"/>
+
+        <SwitchPreferenceCompat
             app:key="use_dummy"
             app:title="@string/dummy_title"
             app:summary="@string/dummy_summary"
+            app:defaultValue="true"
             app:useSimpleSummaryProvider="false"/>
 
     </PreferenceCategory>

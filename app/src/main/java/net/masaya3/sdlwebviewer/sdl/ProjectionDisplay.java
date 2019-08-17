@@ -136,13 +136,17 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
         setContentView(R.layout.projection_layout);
 
         //アプリケーション用のURLを取得する
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
         String url = sharedPreferences.getString("sdl_url", getContext().getString(R.string.projection_url));
+        if(url.isEmpty()){
+            url =  getContext().getString(R.string.projection_url);
+        }
 
         webView = (WebView) findViewById(R.id.webView);
 
-        final AppCompatImageView button = (AppCompatImageView)findViewById(R.id.backButton);
-        button.setOnClickListener(new View.OnClickListener() {
+        //戻るボタン
+        AppCompatImageView backbutton = (AppCompatImageView)findViewById(R.id.backButton);
+        backbutton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if(webView.canGoBack()){
@@ -153,8 +157,41 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
 
         //表示設定の場合
         if(!sharedPreferences.getBoolean("use_backkey", true)){
-            button.setVisibility(View.GONE);
+            backbutton.setVisibility(View.GONE);
         }
+
+        //ホームボタン
+        AppCompatImageView homebutton = (AppCompatImageView)findViewById(R.id.homeButton);
+        backbutton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(webView.canGoBack()){
+                    webView.goBack();
+                }
+            }
+        });
+
+        //表示設定の場合
+        if(!sharedPreferences.getBoolean("use_homekey", true)){
+            homebutton.setVisibility(View.GONE);
+        }
+
+        //リロードボタン
+        AppCompatImageView reloadbutton = (AppCompatImageView)findViewById(R.id.reloadButton);
+        reloadbutton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(webView.canGoBack()){
+                    webView.goBack();
+                }
+            }
+        });
+
+        //表示設定の場合
+        if(!sharedPreferences.getBoolean("use_reloadkey", true)){
+            reloadbutton.setVisibility(View.GONE);
+        }
+
 
         webView.setWebViewClient(new WebViewClient(){});
 
