@@ -47,13 +47,27 @@
             app:defaultValue="true"
             app:useSimpleSummaryProvider="false"/>
 
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/data_header">
+        <SwitchPreferenceCompat
+            app:key="use_auto_subscribe"
+            app:title="@string/auto_subscribe_title"
+            app:summary="@string/auto_subscribe_summary"
+            app:defaultValue="true"
+            app:useSimpleSummaryProvider="false"/>
+        <SwitchPreferenceCompat
+            app:key="use_fake_subscribe"
+            app:title="@string/fake_subscribe_title"
+            app:summary="@string/fake_subscribe_summary"
+            app:defaultValue="false"
+            app:useSimpleSummaryProvider="false"/>
         <SwitchPreferenceCompat
             app:key="use_dummy"
             app:title="@string/dummy_title"
             app:summary="@string/dummy_summary"
             app:defaultValue="true"
             app:useSimpleSummaryProvider="false"/>
-
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/type_header">

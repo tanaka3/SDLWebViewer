@@ -99,6 +99,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.Vector;
 
 public class SdlService extends Service implements LocationListener {
@@ -114,18 +116,18 @@ public class SdlService extends Service implements LocationListener {
 
 	// variable to create and call functions of the SyncProxy
 	private SdlManager sdlManager = null;
-
 	//プロジェクション画面との通信用
 	private LocalBroadcastManager broadcastReceiver;
-
 	//プロジェクション画面との通信用
 	private BroadcastReceiver receiver;
-
 	//ScribeVehicleDataの取得が実施されているかどうか
 	private boolean isSubScribeVehicleData = false;
-
 	// GPS情報の取得
 	private LocationManager locationManager;
+	// 過去の車両情報
+	private JSONObject beforeVehicleData = new JSONObject();
+	// FakeSubscribeタイマー
+	private Timer fakeSubscribeTimer;
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -425,6 +427,8 @@ public class SdlService extends Service implements LocationListener {
 
 		stopVhicledataReceiver();
 
+		stopSubscribeVehicleData();
+
 		stopLocation();
 	}
 
@@ -581,11 +585,23 @@ public class SdlService extends Service implements LocationListener {
 		}
 	}
 
+	private void getFakeSubscribeVehicleData(){
+		Log.d(TAG, "getFakeSubscribeVehicleData");
+		getVehicleData(true);
+	}
+
 	/**
 	 * 指定された車情報を取得する
 	 */
 	private void getVehicleData() {
+		getVehicleData(false);
+	}
 
+	/**
+	 * 指定された車情報を取得する
+	 */
+	private void getVehicleData(final boolean subscribe) {
+		Log.d(TAG, "GetVehicleData:" + subscribe);
 		if (sdlManager == null) {
 			return;
 		}
@@ -624,6 +640,17 @@ public class SdlService extends Service implements LocationListener {
 
 		vdRequest.setOnRPCResponseListener(new OnRPCResponseListener() {
 
+			private boolean canUpdate(String key, String value){
+
+				try {
+					return !(beforeVehicleData.has(key) && beforeVehicleData.get(key).equals(value));
+				} catch (JSONException e) {
+					e.printStackTrace();
+				}
+
+				return true;
+			}
+
 			@Override
 			public void onResponse(int correlationId, RPCResponse response) {
 				Log.d(TAG, "GetVehicleData:onResponse");
@@ -634,12 +661,13 @@ public class SdlService extends Service implements LocationListener {
 					Log.i("SdlService", "GetVehicleData was rejected.");
 				}
 
+
 				SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
 				boolean isDummy = sharedPreferences.getBoolean("use_dummy", false);
 
 				GetVehicleDataResponse vehicleData = (GetVehicleDataResponse) response;
-				try {
 
+				try {
 					//GPS(ここは自分のGPS情報を出力する
 					GPSData gps = null;
 					if (locationManager != null) {
@@ -664,8 +692,14 @@ public class SdlService extends Service implements LocationListener {
 						gps.setAltitude(0.0);
 					}
 
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_GPS, gps.serializeJSON().toString())){
+						gps = null;
+					}
+
 					if (gps!= null) {
 						json.put(GetVehicleDataResponse.KEY_GPS, gps.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_GPS, gps.serializeJSON().toString());
 					}
 
 					//Speed
@@ -673,8 +707,15 @@ public class SdlService extends Service implements LocationListener {
 					if(speed == null && isDummy){
 						speed = 88.88;
 					}
+
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_SPEED, speed.toString())){
+						speed = null;
+					}
+
 					if (speed!= null) {
 						json.put(GetVehicleDataResponse.KEY_SPEED, speed);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_SPEED, speed.toString());
 					}
 
 					//RPM
@@ -682,16 +723,26 @@ public class SdlService extends Service implements LocationListener {
 					if(rpm == null && isDummy){
 						rpm = 9999;
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_RPM, rpm.toString())){
+						rpm = null;
+					}
 					if(rpm != null){
 						json.put(GetVehicleDataResponse.KEY_RPM, rpm);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_RPM, rpm.toString());
 					}
 
 					Double fuelLevel = vehicleData.getFuelLevel();
 					if(fuelLevel == null&& isDummy){
 						fuelLevel = 55.55;
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_FUEL_LEVEL, fuelLevel.toString())){
+						fuelLevel = null;
+					}
 					if(fuelLevel != null){
 						json.put(GetVehicleDataResponse.KEY_FUEL_LEVEL, fuelLevel);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_FUEL_LEVEL, fuelLevel.toString());
 					}
 
 					List<FuelRange> ranges = vehicleData.getFuelRange();
@@ -702,37 +753,58 @@ public class SdlService extends Service implements LocationListener {
 						range.setRange(22.22f);
 						ranges.add(range);
 					}
+					//#todo
 
 					if(ranges != null){
 						JSONArray range_array = new JSONArray();
 						for(FuelRange range : ranges){
 							range_array.put(range.serializeJSON());
 						}
-						json.put(GetVehicleDataResponse.KEY_FUEL_RANGE, range_array);
+						if(!(subscribe &&
+								!canUpdate(GetVehicleDataResponse.KEY_FUEL_LEVEL, range_array.toString()))){
+
+							json.put(GetVehicleDataResponse.KEY_FUEL_RANGE, range_array);
+							beforeVehicleData.put(GetVehicleDataResponse.KEY_FUEL_RANGE, range_array.toString());
+						}
 					}
 
 					Double instantFuel = vehicleData.getInstantFuelConsumption();
 					if(instantFuel == null && isDummy){
 						instantFuel = 11.11;
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_INSTANT_FUEL_CONSUMPTION, instantFuel.toString())){
+						instantFuel = null;
+					}
 					if(instantFuel != null){
 						json.put(GetVehicleDataResponse.KEY_INSTANT_FUEL_CONSUMPTION, instantFuel);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_INSTANT_FUEL_CONSUMPTION, instantFuel.toString());
 					}
 
 					Double temprature =  vehicleData.getExternalTemperature();
 					if(temprature == null && isDummy){
 						temprature = 23.23;
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_EXTERNAL_TEMPERATURE, temprature.toString())){
+						temprature = null;
+					}
 					if(temprature != null){
 						json.put(GetVehicleDataResponse.KEY_EXTERNAL_TEMPERATURE, temprature);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_EXTERNAL_TEMPERATURE, temprature.toString());
 					}
 
 					String vin = vehicleData.getVin();
 					if(vin == null && isDummy){
 						vin = "DUMMY_VIN";
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_TIRE_PRESSURE, vin)){
+						vin = null;
+					}
 					if(vin != null){
 						json.put(GetVehicleDataResponse.KEY_VIN, vin);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_VIN, vin);
 					}
 
 					TireStatus tireStatus = vehicleData.getTirePressure();
@@ -754,16 +826,27 @@ public class SdlService extends Service implements LocationListener {
 						tireStatus.setPressureTellTale(WarningLightStatus.ON);
 
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_TIRE_PRESSURE, tireStatus.serializeJSON().toString())){
+						tireStatus = null;
+					}
 					if(tireStatus != null){
 						json.put(GetVehicleDataResponse.KEY_TIRE_PRESSURE, tireStatus.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_TIRE_PRESSURE, tireStatus.serializeJSON().toString());
 					}
 
 					Integer odometer = vehicleData.getOdometer();
 					if(odometer == null && isDummy){
 						odometer = 7777;
 					}
+
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_ODOMETER, odometer.toString())){
+						odometer = null;
+					}
 					if(odometer != null){
 						json.put(GetVehicleDataResponse.KEY_ODOMETER, odometer);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_ODOMETER, odometer.toString());
 					}
 
 					BeltStatus beltStatus = vehicleData.getBeltStatus();
@@ -786,10 +869,17 @@ public class SdlService extends Service implements LocationListener {
 						beltStatus.setPassengerChildDetected(VehicleDataEventStatus.YES);
 
 					}
+					//
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_BELT_STATUS, beltStatus.serializeJSON().toString())){
+						beltStatus = null;
+					}
 					if(beltStatus != null){
 						json.put(GetVehicleDataResponse.KEY_BELT_STATUS, beltStatus.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_BELT_STATUS, beltStatus.serializeJSON().toString());
 					}
 
+					//
 					BodyInformation bodyInformation = vehicleData.getBodyInformation();
 					if(bodyInformation == null && isDummy){
 						bodyInformation = new BodyInformation();
@@ -801,10 +891,17 @@ public class SdlService extends Service implements LocationListener {
 						bodyInformation.setRearLeftDoorAjar(true);
 						bodyInformation.setRearRightDoorAjar(true);
 					}
-					if(bodyInformation != null){
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_BODY_INFORMATION, bodyInformation.serializeJSON().toString())){
+
+						bodyInformation = null;
+					}
+					if(bodyInformation != null) {
 						json.put(GetVehicleDataResponse.KEY_BODY_INFORMATION, bodyInformation.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_BODY_INFORMATION, bodyInformation.serializeJSON().toString());
 					}
 
+					//
 					DeviceStatus deviceStatus = vehicleData.getDeviceStatus();
 					if(deviceStatus == null && isDummy){
 						deviceStatus = new DeviceStatus();
@@ -820,27 +917,44 @@ public class SdlService extends Service implements LocationListener {
 						deviceStatus.setTextMsgAvailable(true);
 						deviceStatus.setVoiceRecOn(true);
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_DEVICE_STATUS, deviceStatus.serializeJSON().toString())){
+						deviceStatus = null;
+					}
 					if(deviceStatus != null){
 						json.put(GetVehicleDataResponse.KEY_DEVICE_STATUS, deviceStatus.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_DEVICE_STATUS, deviceStatus.serializeJSON().toString());
 					}
 
+					//
 					VehicleDataEventStatus driverBraking = vehicleData.getDriverBraking();
 					if(driverBraking == null && isDummy){
 						driverBraking = VehicleDataEventStatus.YES;
 					}
-					if(driverBraking != null){
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_DRIVER_BRAKING, driverBraking.toString())){
+						driverBraking = null;
+					}
+					if(driverBraking != null) {
 						json.put(GetVehicleDataResponse.KEY_DRIVER_BRAKING, driverBraking.toString());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_DRIVER_BRAKING, driverBraking.toString());
 					}
 
+					//
 					WiperStatus wiperStatus = vehicleData.getWiperStatus();
 					if(wiperStatus == null && isDummy){
 						wiperStatus = WiperStatus.AUTO_HIGH;
 					}
-
+					if(subscribe && beforeVehicleData != null &&
+							!canUpdate(GetVehicleDataResponse.KEY_WIPER_STATUS, wiperStatus.toString())){
+						wiperStatus = null;
+					}
 					if(wiperStatus != null){
 						json.put(GetVehicleDataResponse.KEY_WIPER_STATUS, wiperStatus.toString());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_WIPER_STATUS, wiperStatus.toString());
 					}
 
+					//
 					HeadLampStatus headLampStatus = vehicleData.getHeadLampStatus();
 					if(headLampStatus == null && isDummy){
 						headLampStatus = new HeadLampStatus();
@@ -848,45 +962,70 @@ public class SdlService extends Service implements LocationListener {
 						headLampStatus.setHighBeamsOn(true);
 						headLampStatus.setLowBeamsOn(true);
 					}
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_HEAD_LAMP_STATUS, headLampStatus.serializeJSON().toString())){
 
+						headLampStatus = null;
+					}
 					if(headLampStatus != null){
 						json.put(GetVehicleDataResponse.KEY_HEAD_LAMP_STATUS, headLampStatus.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_HEAD_LAMP_STATUS, headLampStatus.serializeJSON().toString());
 					}
 
+					//
 					Double engineTorque = vehicleData.getEngineTorque();
 					if(engineTorque == null && isDummy){
 						engineTorque = 1111.11;
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_ENGINE_TORQUE, engineTorque.toString())){
+						engineTorque = null;
+					}
 					if(engineTorque != null){
 						json.put(GetVehicleDataResponse.KEY_ENGINE_TORQUE, engineTorque);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_ENGINE_TORQUE, engineTorque.toString());
 					}
 
+					///
 					Float engineOilLife = vehicleData.getEngineOilLife();
 					if(engineOilLife == null && isDummy){
 						engineOilLife = 55.55f;
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_ENGINE_OIL_LIFE, engineOilLife.toString())){
+						engineOilLife = null;
+					}
 					if(engineOilLife != null){
 						json.put(GetVehicleDataResponse.KEY_ENGINE_OIL_LIFE, engineOilLife);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_ENGINE_OIL_LIFE, engineOilLife.toString());
 					}
 
+					//
 					Double accPedalPosition = vehicleData.getAccPedalPosition();
 					if(accPedalPosition == null && isDummy){
 						accPedalPosition = 44.44;
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_ACC_PEDAL_POSITION, accPedalPosition.toString())){
+						accPedalPosition = null;
+					}
 					if(accPedalPosition != null){
 						json.put(GetVehicleDataResponse.KEY_ACC_PEDAL_POSITION, accPedalPosition);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_ACC_PEDAL_POSITION, accPedalPosition.toString());
 					}
 
+					//
 					Double steeringWheelAngle = vehicleData.getSteeringWheelAngle();
 					if(steeringWheelAngle == null && isDummy){
 						steeringWheelAngle = 128.0;
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_STEERING_WHEEL_ANGLE, steeringWheelAngle.toString())){
+						steeringWheelAngle = null;
+					}
 					if(steeringWheelAngle != null){
 						json.put(GetVehicleDataResponse.KEY_STEERING_WHEEL_ANGLE, steeringWheelAngle);
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_STEERING_WHEEL_ANGLE, steeringWheelAngle.toString());
 					}
 
 					AirbagStatus airbagStatus = vehicleData.getAirbagStatus();
@@ -901,9 +1040,13 @@ public class SdlService extends Service implements LocationListener {
 						airbagStatus.setPassengerKneeAirbagDeployed(VehicleDataEventStatus.YES);
 						airbagStatus.setPassengerSideAirbagDeployed(VehicleDataEventStatus.YES);
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_AIRBAG_STATUS, airbagStatus.serializeJSON().toString())){
+						airbagStatus = null;
+					}
 					if(airbagStatus != null){
 						json.put(GetVehicleDataResponse.KEY_AIRBAG_STATUS, airbagStatus.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_AIRBAG_STATUS, airbagStatus.serializeJSON().toString());
 					}
 
 					ECallInfo eCallInfo = vehicleData.getECallInfo();
@@ -913,9 +1056,13 @@ public class SdlService extends Service implements LocationListener {
 						eCallInfo.setECallConfirmationStatus(ECallConfirmationStatus.CALL_IN_PROGRESS);
 						eCallInfo.setECallNotificationStatus(VehicleDataNotificationStatus.ACTIVE);
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_E_CALL_INFO, eCallInfo.serializeJSON().toString())){
+						eCallInfo = null;
+					}
 					if(eCallInfo != null){
 						json.put(GetVehicleDataResponse.KEY_E_CALL_INFO, eCallInfo.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_E_CALL_INFO, eCallInfo.serializeJSON().toString());
 					}
 
 					EmergencyEvent emergencyEvent = vehicleData.getEmergencyEvent();
@@ -927,11 +1074,16 @@ public class SdlService extends Service implements LocationListener {
 						emergencyEvent.setMultipleEvents(VehicleDataEventStatus.YES);
 						emergencyEvent.setRolloverEvent(VehicleDataEventStatus.YES);
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_EMERGENCY_EVENT, emergencyEvent.serializeJSON().toString())){
+						emergencyEvent = null;
+					}
 					if(emergencyEvent != null){
 						json.put(GetVehicleDataResponse.KEY_EMERGENCY_EVENT, emergencyEvent.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_EMERGENCY_EVENT, emergencyEvent.serializeJSON().toString());
 					}
 
+					//
 					ClusterModeStatus clusterModeStatus = vehicleData.getClusterModeStatus();
 					if(clusterModeStatus == null && isDummy){
 						clusterModeStatus = new ClusterModeStatus();
@@ -940,39 +1092,57 @@ public class SdlService extends Service implements LocationListener {
 						clusterModeStatus.setPowerModeQualificationStatus(PowerModeQualificationStatus.POWER_MODE_OK);
 						clusterModeStatus.setPowerModeStatus(PowerModeStatus.KEY_APPROVED_0);
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_CLUSTER_MODE_STATUS, clusterModeStatus.serializeJSON().toString())){
+						clusterModeStatus = null;
+					}
 					if(clusterModeStatus != null){
 						json.put(GetVehicleDataResponse.KEY_CLUSTER_MODE_STATUS, clusterModeStatus.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_CLUSTER_MODE_STATUS, clusterModeStatus.serializeJSON().toString());
 					}
 
+					//
 					MyKey myKey = vehicleData.getMyKey();
 					if(myKey == null && isDummy){
 						myKey = new MyKey();
 						myKey.setE911Override(VehicleDataStatus.ON);
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_MY_KEY, myKey.serializeJSON().toString())){
+						myKey = null;
+					}
 					if(myKey != null){
 						json.put(GetVehicleDataResponse.KEY_MY_KEY, myKey.serializeJSON());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_MY_KEY, myKey.serializeJSON().toString());
 					}
 
+					//
 					TurnSignal turnSignal = vehicleData.getTurnSignal();
 					if(turnSignal == null && isDummy){
 						turnSignal = TurnSignal.BOTH;
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_TURN_SIGNAL, turnSignal.toString())){
+						turnSignal = null;
+					}
 					if(turnSignal != null){
 						json.put(GetVehicleDataResponse.KEY_TURN_SIGNAL, turnSignal.toString());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_TURN_SIGNAL, turnSignal.toString());
 					}
 
+					//
 					ElectronicParkBrakeStatus electronicParkBrakeStatus = vehicleData.getElectronicParkBrakeStatus();
 					if(electronicParkBrakeStatus == null && isDummy){
 						electronicParkBrakeStatus = ElectronicParkBrakeStatus.CLOSED;
 					}
-
+					if(subscribe &&
+							!canUpdate(GetVehicleDataResponse.KEY_ELECTRONIC_PARK_BRAKE_STATUS, electronicParkBrakeStatus.toString())){
+						electronicParkBrakeStatus = null;
+					}
 					if(electronicParkBrakeStatus != null){
 						json.put(GetVehicleDataResponse.KEY_ELECTRONIC_PARK_BRAKE_STATUS, electronicParkBrakeStatus.toString());
+						beforeVehicleData.put(GetVehicleDataResponse.KEY_ELECTRONIC_PARK_BRAKE_STATUS, electronicParkBrakeStatus.toString());
 					}
-
 
 					//プロジェクション画面にデータを送信する
 					final Intent intent = new Intent();
@@ -991,7 +1161,6 @@ public class SdlService extends Service implements LocationListener {
 		sdlManager.sendRPC(vdRequest);
 	}
 
-
 	/**
 	 * 指定された車情報の定期取得の開始
 	 */
@@ -1004,6 +1173,13 @@ public class SdlService extends Service implements LocationListener {
 
 		isSubScribeVehicleData = true;
 
+
+		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+		if(sharedPreferences.getBoolean("use_fake_subscribe", false)){
+			Log.d(TAG, "startSubscribeVehicleData(Fake)");
+			startFakeSubscribeVehicleData();
+			return;
+		}
 		//定期受信用のデータを設定する
 		SubscribeVehicleData subscribeRequest = new SubscribeVehicleData();
 
@@ -1062,6 +1238,13 @@ public class SdlService extends Service implements LocationListener {
 
 		isSubScribeVehicleData = false;
 
+		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+		if(sharedPreferences.getBoolean("use_fake_subscribe", false)){
+			Log.d(TAG, "stopSubscribeVehicleData(Fake)");
+			stopFakeSubscribeVehicleData();
+			return;
+		}
+
 		UnsubscribeVehicleData unsubscribeRequest = new UnsubscribeVehicleData();
 
 		//解除する車情報を設定する(すべての情報）
@@ -1105,6 +1288,35 @@ public class SdlService extends Service implements LocationListener {
 		sdlManager.sendRPC(unsubscribeRequest);
 	}
 
+
+	/**
+	 * 指定された車情報の定期取得の開始(FAKE動作用）
+	 */
+	private void startFakeSubscribeVehicleData(){
+		if(fakeSubscribeTimer != null){
+			return;
+		}
+
+		fakeSubscribeTimer = new Timer();
+		fakeSubscribeTimer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				getFakeSubscribeVehicleData();
+			}
+
+		},0, 1000);
+	}
+
+	/**
+	 * 指定された車情報の定期取得の終了(FAKE動作用）
+	 */
+	private void stopFakeSubscribeVehicleData(){
+		if(fakeSubscribeTimer == null){
+			return;
+		}
+		fakeSubscribeTimer.cancel();
+		fakeSubscribeTimer = null;
+	}
 	/**
 	 * 車情報の定期取得
 	 */

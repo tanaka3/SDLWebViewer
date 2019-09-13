@@ -60,6 +60,33 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
             intent.setAction(SdlService.ACTION_GET_VEHICLEDATA);
             manager.sendBroadcast(intent);
         }
+
+        /**
+         * 車両情報の定期取得を開始する
+         */
+        @JavascriptInterface
+        public void startSubscribeVehicleData(){
+            Log.d("SDLWebViewer", "JavaScript:startSubscribeVehicleData");
+
+            //service側に取得用メッセージを送信する
+            final Intent intent = new Intent();
+            intent.setAction(SdlService.ACTION_START_SUBSCRIBE_VEHICLEDATA);
+            manager.sendBroadcast(intent);
+        }
+
+
+        /**
+         * 車両情報の定期取得を停止する
+         */
+        @JavascriptInterface
+        public void stopSubscribeVehicleData(){
+            Log.d("SDLWebViewer", "JavaScript:stopSubscribeVehicleData");
+
+            //service側に取得用メッセージを送信する
+            final Intent intent = new Intent();
+            intent.setAction(SdlService.ACTION_STOP_SUBSCRIBE_VEHICLEDATA);
+            manager.sendBroadcast(intent);
+        }
     }
 
     // ブロードキャストマネージャ
@@ -114,10 +141,14 @@ public class ProjectionDisplay extends SdlRemoteDisplay {
         // レシーバを登録する
         broadcastReceiver.registerReceiver(receiver, filter);
 
-        // 車情報の定期取得を開始する
-        final Intent intent = new Intent();
-        intent.setAction(SdlService.ACTION_START_SUBSCRIBE_VEHICLEDATA);
-        broadcastReceiver.sendBroadcast(intent);
+        //自動追加の場合は、自動で実行する
+        final SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        if(sharedPreferences.getBoolean("use_auto_subscribe", true)) {
+            // 車情報の定期取得を開始する
+            final Intent intent = new Intent();
+            intent.setAction(SdlService.ACTION_START_SUBSCRIBE_VEHICLEDATA);
+            broadcastReceiver.sendBroadcast(intent);
+        }
     }
 
     /**
